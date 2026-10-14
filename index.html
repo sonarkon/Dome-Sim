@@ -442,6 +442,7 @@ function applyDemo(kind) {
   Object.assign(state.cam, { yaw: -8, pitch: 38, fovRect: 112 });
   state.view = kind === 'popup' ? 'master' : 'inside';
   if (kind === 'popup') { state.showUI = false; state.dome.grid = 0.3; }
+  if (URLQ.get('labels') !== null) state.dome.gridLabels = Math.max(0, Math.min(2, +URLQ.get('labels') || 0));
 }
 if (DEMO) applyDemo(DEMO);
 sanitizeOrder();
@@ -2022,7 +2023,7 @@ function drawLayerTools(ctx, proj, scl) {
 // Spaltenbuchstaben A, B … Z, AA, AB …
 function colLabel(i) { let t = ''; i = i | 0; do { t = String.fromCharCode(65 + (i % 26)) + t; i = Math.floor(i / 26) - 1; } while (i >= 0); return t; }
 // Raster-Beschriftung: Modus 1 = Zell-IDs in den Zellmitten (A = erste Spalte rechts von vorne, 1 = unterstes Band),
-// Modus 2 = Koordinaten az°/el° an den Linienkreuzungen. eye ≠ null: Außenansicht, nur die gegenüberliegende Innenseite beschriften.
+// Modus 2 = Koordinaten der Zellmitte (az°/el°). eye ≠ null: Außenansicht, nur die gegenüberliegende Innenseite beschriften.
 function drawGridLabels(ctx, proj, scl, eye) {
   const mode = state.dome.gridLabels | 0;
   if (!mode) return;
@@ -2034,6 +2035,7 @@ function drawGridLabels(ctx, proj, scl, eye) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `600 ${fs}px -apple-system, system-ui, sans-serif`;
   ctx.lineJoin = 'round'; ctx.lineWidth = 3 * scl; ctx.strokeStyle = 'rgba(8,10,14,.78)'; ctx.fillStyle = 'rgba(190,215,255,.96)';
+  ctx.globalAlpha = 0.2 + 0.8 * clamp(state.dome.grid, 0, 1);   // Rasterstärke-Regler dimmt auch die Beschriftung
   const put = (txt, az, el) => {
     const d = dirOf(az, el);
     if (eye && V.dot(d, eye) > 0) return;
@@ -2044,13 +2046,12 @@ function drawGridLabels(ctx, proj, scl, eye) {
     if (v && Math.hypot(v[0] - p[0], v[1] - p[1]) < fs + 4 * scl) return;   // zu eng übereinander
     ctx.strokeText(txt, p[0], p[1]); ctx.fillText(txt, p[0], p[1]);
   };
-  if (mode === 1) {
-    for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) put(colLabel(c) + (r + 1), (c + 0.5) * azS, (r + 0.5) * elS);
-  } else {
-    for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) {
-      const az = c * azS, azSigned = az > 180 ? az - 360 : az, el = r * elS;
-      put(`${azSigned}°/${el}°`, az, el);
-    }
+  // beide Modi beschriften die Zellmitte (so bleibt alles innerhalb des Masters)
+  const num = v => String(Math.round(v * 10) / 10);
+  for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) {
+    const az = (c + 0.5) * azS, el = (r + 0.5) * elS;
+    if (mode === 1) put(colLabel(c) + (r + 1), az, el);
+    else put(`${num(az > 180 ? az - 360 : az)}°/${num(el)}°`, az, el);   // Mittelpunkt der Zelle: Azimut°/Höhe°
   }
   ctx.restore();
 }
