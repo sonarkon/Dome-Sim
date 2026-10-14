@@ -59,7 +59,8 @@ aside{overflow-y:auto;background:var(--panel);padding:10px 14px 40px}
 #panelR>.credits{margin-top:auto;padding:14px 2px 0;border-top:1px solid var(--line);font-size:11px;line-height:1.65;color:var(--dim)}
 #panelR>.credits a{color:inherit}
 #panelR>.credits b{color:var(--fg);font-weight:600}
-body.demo-popup #views,body.demo-popup .edge,body.demo-popup #hint,body.demo-popup #fps{display:none}
+body.demo #fps{display:none}
+body.demo-popup #views,body.demo-popup .edge,body.demo-popup #hint{display:none}
 .edge{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:54px;border:1px solid var(--line);background:rgba(20,22,27,.82);color:var(--dim);cursor:pointer;z-index:5;padding:0;font:inherit;font-size:14px;line-height:1}
 .edge:hover{color:var(--fg)}
 #toggleL{left:0;border-radius:0 8px 8px 0;border-left:0}
@@ -158,12 +159,6 @@ details p{padding:0}
       <button data-v="outside">Außen<kbd>2</kbd></button>
       <button data-v="master">Domemaster<kbd>3</kbd></button>
       <span class="sep"></span>
-      <button id="gridToggle" title="Raster ein-/ausblenden · G" aria-label="Raster ein-/ausblenden">
-        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
-          <circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2v12M3.6 4.6c2.8 1.2 6 1.2 8.8 0M3.6 11.4c2.8-1.2 6-1.2 8.8 0"/>
-        </svg>
-      </button>
-      <input id="gridAmt" type="range" min="0.05" max="1" step="0.01" title="Rasterstärke" aria-label="Rasterstärke">
       <button id="showToggle" title="Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S" aria-label="Show-Modus">
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
           <path d="M2.2 11.5a5.8 5.8 0 1 1 11.6 0"/><path d="M8 11.5 L11 6.5"/><circle cx="8" cy="11.5" r="1" fill="currentColor" stroke="none"/>
@@ -174,6 +169,13 @@ details p{padding:0}
           <rect x="3.5" y="3.5" width="9" height="9" rx="0.5"/>
           <g fill="currentColor" stroke="none"><rect x="1.6" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="1.6" y="10.8" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="10.8" width="3.6" height="3.6" rx="0.6"/></g>
           <path class="slash" d="M1.5 14.5 L14.5 1.5" stroke-width="1.6"/>
+        </svg>
+      </button>
+      <span class="sep"></span>
+      <input id="gridAmt" type="range" min="0.05" max="1" step="0.01" title="Rasterstärke" aria-label="Rasterstärke">
+      <button id="gridToggle" title="Raster ein-/ausblenden · G" aria-label="Raster ein-/ausblenden">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2v12M3.6 4.6c2.8 1.2 6 1.2 8.8 0M3.6 11.4c2.8-1.2 6-1.2 8.8 0"/>
         </svg>
       </button>
     </div>
@@ -419,14 +421,14 @@ function sanitizeOrder() {
 function applyDemo(kind) {
   const L = state.layers, set = (i, o) => Object.assign(L[i], o);
   state.project = 'Planetarium demo';
-  set(0, { used: true, name: 'Stage screen', srcType: 'test', testKind: 0, mapping: 0, az: -18, el: 36, size: 58, roll: 0, opacity: 1, blend: 0, feather: 0.06 });
-  set(1, { used: true, name: 'Panorama band', srcType: 'test', testKind: 1, mapping: 3, az: 0, el: 0, size: 360, aspect: 2, opacity: 0.7, blend: 1 });
-  set(2, { used: true, name: 'Side panel', srcType: 'test', testKind: 0, mapping: 0, az: 38, el: 30, size: 30, roll: 0, keyV: 0.3, opacity: 1, blend: 0 });
-  state.order.length = 0; state.order.push(1, 0, 2); state.sel = 0;
-  Object.assign(state.dome, { eyeH: 1.1, spring: 1.25, seatDist: 4.2, seatAng: 180, lens: 0, gridOn: true, grid: 0.4 });
-  Object.assign(state.cam, { yaw: -6, pitch: 30, fovRect: 105 });
+  set(0, { used: true, name: 'Domemaster test', srcType: 'test', testKind: 2, mapping: 4, az: 0, el: 0, size: 180, aspect: 1, opacity: 0.85, blend: 0 });
+  set(1, { used: true, name: 'Stage screen', srcType: 'test', testKind: 0, mapping: 0, az: -16, el: 34, size: 50, roll: 0, opacity: 1, blend: 0, feather: 0.05 });
+  set(2, { used: true, name: 'Side panel', srcType: 'test', testKind: 0, mapping: 0, az: 36, el: 26, size: 26, roll: 0, keyV: 0.3, opacity: 1, blend: 0 });
+  state.order.length = 0; state.order.push(0, 1, 2); state.sel = 1;
+  Object.assign(state.dome, { eyeH: 1.1, spring: 1.25, seatDist: 4.2, seatAng: 180, lens: 0, gridOn: false, grid: 0.4 });
+  Object.assign(state.cam, { yaw: -8, pitch: 38, fovRect: 112 });
   state.view = kind === 'popup' ? 'master' : 'inside';
-  if (kind === 'popup') { state.dome.gridOn = false; state.showUI = false; }
+  if (kind === 'popup') { state.showUI = false; }
 }
 if (DEMO) applyDemo(DEMO);
 sanitizeOrder();
@@ -2161,6 +2163,7 @@ else {
     if (!mainCtx) throw new Error('WebGL2 nicht verfügbar');
     useCtx(mainCtx);
     buildPanel();
+    if (DEMO) document.body.classList.add('demo');
     if (DEMO === 'popup') { uiPrefs.left = uiPrefs.right = false; document.body.classList.add('demo-popup'); }
     applyPanels();
     new ResizeObserver(resize).observe(document.getElementById('stage')); resize();
