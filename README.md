@@ -1,6 +1,6 @@
 # HOPE Dome Sim
 
-**A browser-based dome projection simulator** – preview 2D content, panoramas and pre-rendered fulldome material on a dome, check it from any seat, and send the result on as a domemaster via Syphon.
+**A browser-based dome projection simulator** – preview 2D content, panoramas and pre-rendered fulldome material on a dome, check it from any seat, and send the result on as a domemaster via Syphon – or output it directly to an external monitor.
 
 Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 
@@ -97,7 +97,7 @@ Nothing from Syphon is redistributed here. The bridge listens on `127.0.0.1` onl
 
 ## Kurzfassung (Deutsch)
 
-**HOPE Dome Sim** ist ein Kuppelprojektions-Simulator im Browser von **Sonarkon**: 2D-Inhalte, Panoramen und vorgerendertes Fulldome-Material auf der Kuppel ansehen, von jedem Sitzplatz prüfen und den Domemaster per Syphon weitergeben.
+**HOPE Dome Sim** ist ein Kuppelprojektions-Simulator im Browser von **Sonarkon**: 2D-Inhalte, Panoramen und vorgerendertes Fulldome-Material auf der Kuppel ansehen, von jedem Sitzplatz prüfen und den Domemaster per Syphon weitergeben – oder direkt auf einen externen Monitor ausgeben.
 
 - Der **Simulator** läuft in jedem aktuellen Browser auf **macOS, Windows und Linux**.
 - Die **Syphon-Brücke** (`bridge/`) gibt es nur für **macOS**. Ohne Brücke funktionieren Kamera/Virtual Cam, Fenster-Aufnahme, Videodatei und das Domemaster-Fenster überall.
