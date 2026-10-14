@@ -24,6 +24,7 @@ Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 - **Up to 8 layers** with order (drag & drop), lock, visibility, opacity and blend modes (over / add / subtract / multiply / screen).
 - **Placement:** flat screen, quad in domemaster plane, quad in azimuth/elevation, 360° panorama band, full domemaster. Corner-pin warp, keystone, per-side edge feather with falloff curve, source crop, flips.
 - **Edge extension** for videos on a solid background (stretch edge pixels or fill with the median edge color).
+- **Grid overlay** with adjustable resolution (45°/30° down to 10°/5°), toggle and strength in the toolbar.
 - **Audience position:** eye height, dome rim height (springline offset), seat distance/angle, draggable seat in the outside view.
 - **Sources:** Syphon (via the bridge, macOS), camera / virtual cam, window / screen capture, video files (loop, play/pause, scrub timeline) and still images, built-in test patterns (16:9, 2:1 equirect, 1:1 domemaster).
 - **Projects & presets:** project name field above the layers; presets export as JSON named after the project.

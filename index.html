@@ -341,6 +341,7 @@ const EN = {
   'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.':
     'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.',
   'Sprache': 'Language', 'Projektname': 'Project name',
+  'Raster-Auflösung': 'Grid resolution', 'Grob (45° / 30°)': 'Coarse (45° / 30°)', 'Normal (30° / 15°)': 'Normal (30° / 15°)', 'Fein (15° / 10°)': 'Fine (15° / 10°)', 'Sehr fein (10° / 5°)': 'Very fine (10° / 5°)',
   'Raster ein-/ausblenden · G': 'Show / hide grid · G', 'Raster ein-/ausblenden': 'Show / hide grid', 'Rasterstärke': 'Grid strength',
   'Abspielen': 'Play', 'Pause': 'Pause', 'Zeitleiste': 'Timeline',
   'Bild konnte nicht geladen werden: {0}': 'Could not load image: {0}',
@@ -382,7 +383,7 @@ const defLayer = i => ({
 const defState = () => ({
   project: '',   // Projektname (Anzeige, Preset-Dateiname)
   view: 'inside',
-  dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true },
+  dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true, gridRes: 1 },
   cam: { yaw: 0, pitch: 38, fovRect: 100, fovFish: 180, outYaw: -28, outPitch: 18, outDist: 3.4, outFov: 32 },
   layers: Array.from({ length: MAXL }, (_, i) => defLayer(i)),
   order: [0, 1],   // Zeichenreihenfolge, unten → oben (Layer-IDs)
@@ -614,7 +615,7 @@ uniform int uView;              // 0 innen, 1 außen, 2 domemaster
 uniform vec3 uEye, uRight, uUp, uFwd, uSeat;
 uniform float uTanH, uFishH;
 uniform int uLens;
-uniform float uBase, uGrid, uMS, uOutBg, uRingK, uFlipY, uBGR, uFloorY;
+uniform float uBase, uGrid, uMS, uOutBg, uRingK, uFlipY, uBGR, uFloorY, uGridA, uGridE;
 uniform sampler2D uTex0, uTex1;
 uniform float uOn[2], uOpacity[2], uFeather[2], uAz[2];
 uniform int uMode[2], uBlend[2];
@@ -681,8 +682,8 @@ vec3 blendL(vec3 acc, vec4 L, int mode){
 vec2 gridLines(vec3 d){
   float azr=atan(d.x,-d.z), elr=asin(clamp(d.y,-1.,1.));
   float az=azr*180./PI, el=elr*180./PI, ce=max(cos(elr),0.);
-  float ga=abs(fract(az/30.+.5)-.5)*30.*ce;
-  float ge=abs(fract(el/15.+.5)-.5)*15.;
+  float ga=abs(fract(az/uGridA+.5)-.5)*uGridA*ce;     // Azimut-Linien alle uGridA°
+  float ge=abs(fract(el/uGridE+.5)-.5)*uGridE;        // Höhenlinien alle uGridE°
   float gf=abs(az)*ce;
   float la=1.-smoothstep(0.,max(fwidth(ga),1e-4)*1.5,ga);
   la*=smoothstep(.12,.4,ce);
@@ -778,7 +779,7 @@ function makeGLContext(canvas) {
   g.linkProgram(p);
   if (!g.getProgramParameter(p, g.LINK_STATUS)) throw new Error(g.getProgramInfoLog(p));
   g.useProgram(p);
-  const names = ['uRes','uView','uEye','uRight','uUp','uFwd','uSeat','uTanH','uFishH','uLens','uBase','uGrid','uMS','uOutBg','uRingK','uFlipY','uBGR','uFloorY', ...Array.from({ length: MAXL }, (_, i) => 'uTex' + i),
+  const names = ['uRes','uView','uEye','uRight','uUp','uFwd','uSeat','uTanH','uFishH','uLens','uBase','uGrid','uMS','uOutBg','uRingK','uFlipY','uBGR','uFloorY','uGridA','uGridE', ...Array.from({ length: MAXL }, (_, i) => 'uTex' + i),
     'uOn[0]','uOpacity[0]','uFeather[0]','uAz[0]','uMode[0]','uBlend[0]','uC[0]','uR[0]','uU[0]','uH[0]','uCrop[0]','uPan[0]','uFlip[0]','uExt[0]','uFill[0]','uAsp[0]','uInset[0]','uFeath[0]','uFGam[0]'];
   const u = {};
   names.forEach(n => u[n.replace('[0]', '')] = g.getUniformLocation(p, n));
@@ -1618,6 +1619,7 @@ function buildPanel() {
   const fov = { get v() { return d.lens ? cm.fovFish : cm.fovRect; }, set v(x) { if (d.lens) cm.fovFish = clamp(x, 30, 240); else cm.fovRect = clamp(x, 30, 140); } };
   mkSlider(vb, 'Blickfeld', fov, 'v', 30, 240, 1, { fmt: v => Math.round(v) + '°' });
   mkSlider(vb, 'Kuppel-Grundhell.', d, 'ambient', 0, 0.3, 0.005, { fmt: v => Math.round(v * 100) + '%' });
+  mkSelect(vb, 'Raster-Auflösung', d, 'gridRes', [[0, 'Grob (45° / 30°)'], [1, 'Normal (30° / 15°)'], [2, 'Fein (15° / 10°)'], [3, 'Sehr fein (10° / 5°)']]);
   mkBtns(vb, [
     ['Blick zurücksetzen', () => { Object.assign(cm, defState().cam); syncUI(); save(); }],
     ['Sitz in die Mitte', () => { d.seatDist = 0; syncUI(); save(); }],
@@ -1729,8 +1731,12 @@ function pass(w, h, o) {
   gl.uniform1f(U.uBase, o.base); gl.uniform1f(U.uGrid, o.grid);
   gl.uniform1f(U.uMS, o.ms); gl.uniform1f(U.uOutBg, o.bg); gl.uniform1f(U.uRingK, o.ring);
   gl.uniform1f(U.uFlipY, o.flip); gl.uniform1f(U.uBGR, o.bgr); gl.uniform1f(U.uFloorY, floorY());
+  const gr = GRID_RES[clamp(state.dome.gridRes | 0, 0, GRID_RES.length - 1)];
+  gl.uniform1f(U.uGridA, gr[0]); gl.uniform1f(U.uGridE, gr[1]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
+// Rasterauflösung: [Azimut-Schritt°, Höhen-Schritt°]
+const GRID_RES = [[45, 30], [30, 15], [15, 10], [10, 5]];
 const viewIdx = v => v === 'inside' ? 0 : v === 'outside' ? 1 : 2;
 function sendOutput(t) {
   const o = state.out, ws = bridge.ws;
