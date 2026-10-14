@@ -6,6 +6,16 @@ Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 
 *Deutsche Kurzfassung weiter unten.*
 
+![HOPE Dome Sim – inside view with layers, corner handles and the control panels](docs/images/inside-view.png)
+
+*Inside view from a seat: layers with corner handles, view & dome settings, Syphon and output options.*
+
+<p align="center">
+  <img src="docs/images/domemaster-window.png" alt="The separate domemaster window showing the 1:1 fisheye output" width="520">
+</p>
+
+*The separate domemaster window (1:1 fisheye, front at the bottom) – ready to drag to an external monitor and go fullscreen.*
+
 ---
 
 ## What it does
