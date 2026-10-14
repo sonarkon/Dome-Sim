@@ -8,13 +8,13 @@ Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 
 ![HOPE Dome Sim – inside view with layers, corner handles and the control panels](docs/images/inside-view.png)
 
-*Inside view from a seat: layers with corner handles, view & dome settings, Syphon and output options.*
+*Inside view from a seat: layers with corner handles, grid with cell IDs (A1 …), view & dome settings, domemaster window and Syphon options.*
 
 <p align="center">
   <img src="docs/images/domemaster-window.png" alt="The separate domemaster window showing the 1:1 fisheye output" width="520">
 </p>
 
-*The separate domemaster window (1:1 fisheye, front at the bottom) – ready to drag to an external monitor and go fullscreen.*
+*The separate domemaster window (1:1 fisheye, front at the bottom) with grid, cell IDs and tools switched on – ready to drag to an external monitor and go fullscreen.*
 
 ---
 
@@ -24,7 +24,7 @@ Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 - **Up to 8 layers** with order (drag & drop), lock, visibility, opacity and blend modes (over / add / subtract / multiply / screen).
 - **Placement:** flat screen, quad in domemaster plane, quad in azimuth/elevation, 360° panorama band, full domemaster. Corner-pin warp, keystone, per-side edge feather with falloff curve, source crop, flips.
 - **Edge extension** for videos on a solid background (stretch edge pixels or fill with the median edge color).
-- **Grid overlay** with adjustable resolution (45°/30° down to 10°/5°), toggle and strength in the toolbar.
+- **Grid overlay** with adjustable resolution (45°/30° down to 10°/5°) and optional labels: cell IDs (A1 …) or az/el coordinates. Toggle and strength sit in the toolbar; the grid can also be shown in the domemaster window and the domemaster Syphon output.
 - **Audience position:** eye height, dome rim height (springline offset), seat distance/angle, draggable seat in the outside view.
 - **Sources:** Syphon (via the bridge, macOS), camera / virtual cam, window / screen capture, video files (loop, play/pause, scrub timeline) and still images, built-in test patterns (16:9, 2:1 equirect, 1:1 domemaster).
 - **Projects & presets:** project name field above the layers; presets export as JSON named after the project.

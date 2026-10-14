@@ -103,6 +103,12 @@ button.btn{cursor:pointer}
 button.btn:hover{border-color:var(--acc)}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
 .btns button.btn{width:auto;flex:1 1 auto}
+.row2sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.mini{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim)}
+.chips{display:flex;gap:6px;margin:6px 0}
+.chip{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--dim);cursor:pointer;font:inherit;font-size:12px}
+.chip:hover{border-color:var(--acc)}
+.chip.on{border-color:var(--acc);background:#8aa4ff22;color:var(--fg)}
 .transport{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;margin:6px 0}
 .transport .pp{width:30px;padding:5px 0;display:grid;place-items:center}
 .transport .pp svg{width:14px;height:14px;display:block}
@@ -341,6 +347,12 @@ const EN = {
   'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.':
     'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.',
   'Sprache': 'Language', 'Projektname': 'Project name',
+  'Raster-Beschriftung': 'Grid labels', 'Zellen-IDs (A1 …)': 'Cell IDs (A1 …)', 'Koordinaten (Azimut/Höhe)': 'Coordinates (azimuth/elevation)',
+  'Werkzeuge': 'Tools',
+  'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)': 'Show grid in the domemaster window (strength and resolution as in the view)',
+  'Rahmen, Eckpunkte und Layer-Namen im Domemaster-Fenster anzeigen': 'Show frames, corner handles and layer names in the domemaster window',
+  'Raster im Domemaster-Ausgang': 'Grid in domemaster output',
+  'Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls. Unabhängig vom Show-Modus.': 'Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too. Independent of show mode.',
   'Raster-Auflösung': 'Grid resolution', 'Grob (45° / 30°)': 'Coarse (45° / 30°)', 'Normal (30° / 15°)': 'Normal (30° / 15°)', 'Fein (15° / 10°)': 'Fine (15° / 10°)', 'Sehr fein (10° / 5°)': 'Very fine (10° / 5°)',
   'Raster ein-/ausblenden · G': 'Show / hide grid · G', 'Raster ein-/ausblenden': 'Show / hide grid', 'Rasterstärke': 'Grid strength',
   'Abspielen': 'Play', 'Pause': 'Pause', 'Zeitleiste': 'Timeline',
@@ -383,17 +395,17 @@ const defLayer = i => ({
 const defState = () => ({
   project: '',   // Projektname (Anzeige, Preset-Dateiname)
   view: 'inside',
-  dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true, gridRes: 1 },
+  dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true, gridRes: 1, gridLabels: 0 },
   cam: { yaw: 0, pitch: 38, fovRect: 100, fovFish: 180, outYaw: -28, outPitch: 18, outDist: 3.4, outFov: 32 },
   layers: Array.from({ length: MAXL }, (_, i) => defLayer(i)),
   order: [0, 1],   // Zeichenreihenfolge, unten → oben (Layer-IDs)
   out: { fps: 30, flip: false,
-         master: { on: false, name: 'HOPE Dome Sim Domemaster', size: 1024 },
+         master: { on: false, name: 'HOPE Dome Sim Domemaster', size: 1024, grid: false },
          view: { on: false, name: 'HOPE Dome Sim Ansicht', size: 1280 } },
   sel: 0,
   showUI: true,   // Rahmen, Griffe und Labels im Viewport
   show: { on: false, fps: 15, scale: 0.5 },
-  win: { fps: 60, max: 4096 },   // separates Domemaster-Fenster   // Show-Modus: lokale Anzeige drosseln, Ausgabe bleibt voll
+  win: { fps: 60, max: 4096, grid: false, tools: false },   // separates Domemaster-Fenster   // Show-Modus: lokale Anzeige drosseln, Ausgabe bleibt voll
 });
 const state = defState();
 function deepAssign(t, s) {
@@ -422,14 +434,14 @@ function sanitizeOrder() {
 function applyDemo(kind) {
   const L = state.layers, set = (i, o) => Object.assign(L[i], o);
   state.project = 'Planetarium demo';
-  set(0, { used: true, name: 'Domemaster test', srcType: 'test', testKind: 2, mapping: 4, az: 0, el: 0, size: 180, aspect: 1, opacity: 0.85, blend: 0 });
+  set(0, { used: true, name: 'Domemaster test', srcType: 'test', testKind: 2, mapping: 4, az: 0, el: 0, size: 180, aspect: 1, opacity: 0.45, blend: 0 });
   set(1, { used: true, name: 'Stage screen', srcType: 'test', testKind: 0, mapping: 0, az: -16, el: 34, size: 50, roll: 0, opacity: 1, blend: 0, feather: 0.05 });
   set(2, { used: true, name: 'Side panel', srcType: 'test', testKind: 0, mapping: 0, az: 36, el: 26, size: 26, roll: 0, keyV: 0.3, opacity: 1, blend: 0 });
   state.order.length = 0; state.order.push(0, 1, 2); state.sel = 1;
-  Object.assign(state.dome, { eyeH: 1.1, spring: 1.25, seatDist: 4.2, seatAng: 180, lens: 0, gridOn: false, grid: 0.4 });
+  Object.assign(state.dome, { eyeH: 1.1, spring: 1.25, seatDist: 4.2, seatAng: 180, lens: 0, gridOn: true, grid: 0.4, gridRes: 1, gridLabels: 1 });
   Object.assign(state.cam, { yaw: -8, pitch: 38, fovRect: 112 });
   state.view = kind === 'popup' ? 'master' : 'inside';
-  if (kind === 'popup') { state.showUI = false; }
+  if (kind === 'popup') { state.showUI = false; state.dome.grid = 0.3; }
 }
 if (DEMO) applyDemo(DEMO);
 sanitizeOrder();
@@ -1620,17 +1632,41 @@ function buildPanel() {
   mkSlider(vb, 'Blickfeld', fov, 'v', 30, 240, 1, { fmt: v => Math.round(v) + '°' });
   mkSlider(vb, 'Kuppel-Grundhell.', d, 'ambient', 0, 0.3, 0.005, { fmt: v => Math.round(v * 100) + '%' });
   mkSelect(vb, 'Raster-Auflösung', d, 'gridRes', [[0, 'Grob (45° / 30°)'], [1, 'Normal (30° / 15°)'], [2, 'Fein (15° / 10°)'], [3, 'Sehr fein (10° / 5°)']]);
+  mkSelect(vb, 'Raster-Beschriftung', d, 'gridLabels', [[0, 'Aus'], [1, 'Zellen-IDs (A1 …)'], [2, 'Koordinaten (Azimut/Höhe)']]);
   mkBtns(vb, [
     ['Blick zurücksetzen', () => { Object.assign(cm, defState().cam); syncUI(); save(); }],
     ['Sitz in die Mitte', () => { d.seatDist = 0; syncUI(); save(); }],
   ]);
 
-  const wb = mkSection(panelR, 'Domemaster-Fenster');
+  // Domemaster-Fenster: immer sichtbar, kompakt (Rate + Auflösung in einer Zeile, Raster/Werkzeuge als Schalter)
+  const wb = h('div', 'staticsec'); wb.append(h('div', 'seclabel', 'Domemaster-Fenster')); panelR.append(wb);
   mkBtns(wb, [['Domemaster in eigenem Fenster öffnen', openDomeWindow]]);
-  mkSelect(wb, 'Fenster-Rate', state.win, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps'], [120, '120 fps']]);
-  mkSelect(wb, 'Max. Auflösung', state.win, 'max', [[1024, '1024 px'], [2048, '2048 px'], [3072, '3072 px'], [4096, '4096 px']]);
+  const miniSel = (label, obj, key, opts) => {
+    const wrap = h('label', 'mini'); wrap.append(h('span', null, label));
+    const sel = h('select');
+    opts.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; sel.append(o); });
+    sel.value = obj[key];
+    sel.addEventListener('change', () => { obj[key] = Number(sel.value); syncUI(); save(); });
+    syncs.push(() => { sel.value = obj[key]; });
+    wrap.append(sel); return wrap;
+  };
+  const r2 = h('div', 'row2sel');
+  r2.append(miniSel('Fenster-Rate', state.win, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps'], [120, '120 fps']]),
+            miniSel('Max. Auflösung', state.win, 'max', [[1024, '1024 px'], [2048, '2048 px'], [3072, '3072 px'], [4096, '4096 px']]));
+  wb.append(r2);
+  const chips = h('div', 'chips');
+  const chip = (label, tip, obj, key) => {
+    const b = h('button', 'chip'); b.type = 'button'; b.title = T(tip);
+    b.append(h('span', null, label));
+    b.addEventListener('click', () => { obj[key] = !obj[key]; syncUI(); save(); });
+    syncs.push(() => b.classList.toggle('on', !!obj[key]));
+    return b;
+  };
+  chips.append(chip('Raster', 'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)', state.win, 'grid'),
+               chip('Werkzeuge', 'Rahmen, Eckpunkte und Layer-Namen im Domemaster-Fenster anzeigen', state.win, 'tools'));
+  wb.append(chips);
   domeWin.statusEl = h('div', 'status', 'Kein Fenster geöffnet'); wb.append(domeWin.statusEl);
-  wb.append(h('div', 'status', 'Zeigt das 1:1-Domemaster ohne Raster und Rahmen, unabhängig vom Show-Modus. Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls.'));
+  wb.append(h('div', 'status', 'Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls. Unabhängig vom Show-Modus.'));
 
   const sb = mkSection(panelR, 'Syphon');
   bridge.statusEl = h('div', 'status'); sb.append(bridge.statusEl);
@@ -1647,6 +1683,7 @@ function buildPanel() {
       : [[960, '960 × 540'], [1280, '1280 × 720'], [1920, '1920 × 1080']]);
   };
   outBlock('master', 'Domemaster 1:1 (Fisheye) ausgeben', 1);
+  mkCheck(sb, 'Raster im Domemaster-Ausgang', o.master, 'grid');
   outBlock('view', 'Aktuelle Ansicht (16:9) ausgeben', 0);
   mkSelect(sb, 'Bildrate', o, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps']]);
   mkCheck(sb, 'Ausgabe vertikal spiegeln', o, 'flip');
@@ -1753,7 +1790,7 @@ function sendOutput(t) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo);
     const flip = o.flip ? -1 : 1;
     if (key === 'master') {
-      pass(w, h, { cam: { kind: 'master' }, view: 2, base: 0, grid: 0, ms: 1, bg: 0, ring: 0, flip, bgr: 1 });
+      pass(w, h, { cam: { kind: 'master' }, view: 2, base: 0, grid: oo.grid ? state.dome.grid : 0, ms: 1, bg: 0, ring: 0, flip, bgr: 1 });
     } else {
       const v = state.view === 'master' ? 'inside' : state.view, c = cam(v), d = state.dome;
       pass(w, h, { cam: c, view: viewIdx(v), base: d.ambient, grid: d.gridOn ? d.grid : 0, ms: 0.92, bg: 0, ring: 0, flip, bgr: 1 });
@@ -1798,16 +1835,19 @@ function attachDomeWindow(w) {
   const d = w.document;
   d.title = ((state.project || '').trim() ? state.project.trim() + ' – ' : '') + 'HOPE Dome Sim – Domemaster';
   d.head.innerHTML = '<meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}' +
-    'canvas{display:block;position:absolute;inset:0;margin:auto;width:min(100vw,100vh);height:min(100vw,100vh);background:#000}</style>';
+    'canvas{display:block;position:absolute;inset:0;margin:auto;width:min(100vw,100vh);height:min(100vw,100vh);background:#000}canvas.ov{background:transparent;pointer-events:none}</style>';
   d.body.innerHTML = '';
   const cv = d.createElement('canvas'); cv.width = cv.height = 1024;
   d.body.appendChild(cv);
+  const ov2 = d.createElement('canvas'); ov2.className = 'ov'; ov2.width = ov2.height = 1024;   // Werkzeuge / Beschriftung
+  d.body.appendChild(ov2);
   const c = makeGLContext(cv);
   if (!c) { w.close(); if (domeWin.statusEl) domeWin.statusEl.textContent = T('WebGL2 im Fenster nicht verfügbar'); return; }
   const toggleFs = () => { if (d.fullscreenElement) d.exitFullscreen(); else d.documentElement.requestFullscreen().catch(() => {}); };
   d.addEventListener('dblclick', toggleFs);
   w.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') toggleFs(); });
   domeWin.w = w; domeWin.cv = cv; domeWin.c = c; domeWin.last = 0;
+  domeWin.ov = ov2; domeWin.octx = ov2.getContext('2d'); domeWin.ovDirty = false;
   if (!domeWin.loop) { domeWin.loop = true; w.requestAnimationFrame(popupLoop); }
   if (domeWin.statusEl) domeWin.statusEl.textContent = T('Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild');
 }
@@ -1835,8 +1875,21 @@ function drawDomeWindow(t) {
     uploadTextures(domeWin.c, t, false);
     setLayerUniforms();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    pass(n, n, { cam: { kind: 'master' }, view: 2, base: 0, grid: 0, ms: 1, bg: 0, ring: 0, flip: 1, bgr: 0 });
+    pass(n, n, { cam: { kind: 'master' }, view: 2, base: 0, grid: state.win.grid ? state.dome.grid : 0, ms: 1, bg: 0, ring: 0, flip: 1, bgr: 0 });
   } finally { useCtx(mainCtx); }
+  // Werkzeuge (Rahmen, Griffe, Namen) und Raster-Beschriftung als 2D-Overlay im Fenster
+  const wantLabels = state.win.grid && state.dome.gridLabels > 0, wantTools = state.win.tools;
+  if (wantTools || wantLabels) {
+    const o2 = domeWin.ov, x = domeWin.octx;
+    if (o2.width !== n) { o2.width = o2.height = n; }
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, n, n);
+    const proj = dv => { const q = dirToPlane(1, dv, null); return [n / 2 + q[0] * n / 2, n / 2 - q[1] * n / 2]; };
+    if (wantLabels) drawGridLabels(x, proj, n / 900, null);
+    if (wantTools) drawLayerTools(x, proj, n / 900);
+    domeWin.ovDirty = true;
+  } else if (domeWin.ovDirty) {
+    domeWin.octx.clearRect(0, 0, domeWin.ov.width, domeWin.ov.height); domeWin.ovDirty = false;
+  }
 }
 let lastDisp = 0, drawOverlayWhenDue = null;
 // Median der Randpixel des (zugeschnittenen) Bildes = „Hintergrundfarbe“
@@ -1928,44 +1981,85 @@ function render(t) {
   scheduleFrame();
 }
 
-function drawOverlay(c) {
-  octx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  octx.clearRect(0, 0, W, H);
-  const drawOrder = state.showUI ? state.order.filter(i => i !== state.sel).concat(state.order.includes(state.sel) ? [state.sel] : []) : [];
-  for (const i of drawOrder) {
+// Layer-Rahmen, Mittelpunkt, Namen und Eckgriffe (proj: Richtung → Bildschirmpunkt oder null; scl: Größenfaktor)
+function drawLayerTools(ctx, proj, scl) {
+  const order = state.order.filter(i => i !== state.sel).concat(state.order.includes(state.sel) ? [state.sel] : []);
+  for (const i of order) {
     const L = state.layers[i], G = geoms[i];
     if (!L.used || !L.on || L.locked || !G || !G.ok) continue;   // gesperrte Layer: kein Rahmen
     const sel = i === state.sel, col = slots[i].color;
-    octx.lineWidth = sel ? 2 : 1.25; octx.strokeStyle = col; octx.globalAlpha = sel ? 0.95 : 0.5;
+    ctx.lineWidth = (sel ? 2 : 1.25) * scl; ctx.strokeStyle = col; ctx.globalAlpha = sel ? 0.95 : 0.5;
     const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
-    octx.beginPath();
+    ctx.beginPath();
     let pen = false;
     for (let k = 0; k < 4; k++) {
       const a = uvs[k], b = uvs[(k + 1) % 4];
-      for (let s = 0; s <= 24; s++) {
-        const t = s / 24, p = dirToScreen(uvToDir(G, L, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t), c);
+      for (let s2 = 0; s2 <= 24; s2++) {
+        const t = s2 / 24, p = proj(uvToDir(G, L, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t));
         if (!p) { pen = false; continue; }
-        if (!pen) { octx.moveTo(p[0], p[1]); pen = true; } else octx.lineTo(p[0], p[1]);
+        if (!pen) { ctx.moveTo(p[0], p[1]); pen = true; } else ctx.lineTo(p[0], p[1]);
       }
     }
-    octx.stroke();
-    // Zentrum + Label
-    const cp = dirToScreen(uvToDir(G, L, 0.5, 0.5), c);
+    ctx.stroke();
+    const cp = proj(uvToDir(G, L, 0.5, 0.5));
     if (cp) {
-      octx.globalAlpha = sel ? 0.9 : 0.6; octx.fillStyle = col;
-      octx.font = '600 12px -apple-system, system-ui, sans-serif'; octx.textAlign = 'left'; octx.textBaseline = 'bottom';
-      octx.beginPath(); octx.arc(cp[0], cp[1], 3, 0, TAU); octx.fill();
-      octx.fillText(L.name || slots[i].label, cp[0] + 7, cp[1] - 5);
+      ctx.globalAlpha = sel ? 0.9 : 0.6; ctx.fillStyle = col;
+      ctx.font = `600 ${Math.round(12 * scl)}px -apple-system, system-ui, sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.beginPath(); ctx.arc(cp[0], cp[1], 3 * scl, 0, TAU); ctx.fill();
+      ctx.fillText(L.name || slots[i].label, cp[0] + 7 * scl, cp[1] - 5 * scl);
     }
     if (sel && !G.pano) {
-      octx.globalAlpha = 1;
-      G.dirs.forEach((dv, k) => {
-        const p = dirToScreen(dv, c); if (!p) return;
-        octx.beginPath(); octx.arc(p[0], p[1], 7, 0, TAU);
-        octx.fillStyle = col; octx.fill(); octx.lineWidth = 2; octx.strokeStyle = '#0b0d14'; octx.stroke();
+      ctx.globalAlpha = 1;
+      G.dirs.forEach(dv => {
+        const p = proj(dv); if (!p) return;
+        ctx.beginPath(); ctx.arc(p[0], p[1], 7 * scl, 0, TAU);
+        ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2 * scl; ctx.strokeStyle = '#0b0d14'; ctx.stroke();
       });
     }
   }
+  ctx.globalAlpha = 1;
+}
+// Spaltenbuchstaben A, B … Z, AA, AB …
+function colLabel(i) { let t = ''; i = i | 0; do { t = String.fromCharCode(65 + (i % 26)) + t; i = Math.floor(i / 26) - 1; } while (i >= 0); return t; }
+// Raster-Beschriftung: Modus 1 = Zell-IDs in den Zellmitten (A = erste Spalte rechts von vorne, 1 = unterstes Band),
+// Modus 2 = Koordinaten az°/el° an den Linienkreuzungen. eye ≠ null: Außenansicht, nur die gegenüberliegende Innenseite beschriften.
+function drawGridLabels(ctx, proj, scl, eye) {
+  const mode = state.dome.gridLabels | 0;
+  if (!mode) return;
+  const [azS, elS] = GRID_RES[clamp(state.dome.gridRes | 0, 0, GRID_RES.length - 1)];
+  const nCol = Math.round(360 / azS), nRow = Math.round(90 / elS);
+  const dirOf = (az, el) => { const a = az * D2R, e = el * D2R; return [Math.cos(e) * Math.sin(a), Math.sin(e), -Math.cos(e) * Math.cos(a)]; };
+  const fs = Math.round(11 * scl);
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `600 ${fs}px -apple-system, system-ui, sans-serif`;
+  ctx.lineJoin = 'round'; ctx.lineWidth = 3 * scl; ctx.strokeStyle = 'rgba(8,10,14,.78)'; ctx.fillStyle = 'rgba(190,215,255,.96)';
+  const put = (txt, az, el) => {
+    const d = dirOf(az, el);
+    if (eye && V.dot(d, eye) > 0) return;
+    const p = proj(d); if (!p) return;
+    const w = ctx.measureText(txt).width + 8 * scl;
+    const h = proj(dirOf(az + azS, el)), v = proj(dirOf(az, el + elS));
+    if (h && Math.hypot(h[0] - p[0], h[1] - p[1]) < w) return;       // zu eng nebeneinander
+    if (v && Math.hypot(v[0] - p[0], v[1] - p[1]) < fs + 4 * scl) return;   // zu eng übereinander
+    ctx.strokeText(txt, p[0], p[1]); ctx.fillText(txt, p[0], p[1]);
+  };
+  if (mode === 1) {
+    for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) put(colLabel(c) + (r + 1), (c + 0.5) * azS, (r + 0.5) * elS);
+  } else {
+    for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) {
+      const az = c * azS, azSigned = az > 180 ? az - 360 : az, el = r * elS;
+      put(`${azSigned}°/${el}°`, az, el);
+    }
+  }
+  ctx.restore();
+}
+function drawOverlay(c) {
+  octx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  octx.clearRect(0, 0, W, H);
+  const proj = d => dirToScreen(d, c);
+  if (state.dome.gridOn && state.dome.gridLabels > 0) drawGridLabels(octx, proj, 1, c.kind === '3d' && c.outside ? c.eye : null);
+  if (state.showUI) drawLayerTools(octx, proj, 1);
   octx.globalAlpha = 1;
   // Sitz-Marker (Außenansicht) und HUD (Innenansicht)
   const dm = state.dome, R = dm.diameter / 2;
@@ -2192,7 +2286,7 @@ else {
   }
 }
 // für Debugging in der Konsole
-window.__dome = { perf, tick, scheduleFrame, bridge, slots, state, domeWin, attachDomeWindow, openDomeWindow, setShowMode, geom, cam, screenToDir, dirToScreen, layerUV, squareToQuad, invertH, dirToPlane, planeToDir };
+window.__dome = { drawDomeWindow, perf, tick, scheduleFrame, bridge, slots, state, domeWin, attachDomeWindow, openDomeWindow, setShowMode, geom, cam, screenToDir, dirToScreen, layerUV, squareToQuad, invertH, dirToPlane, planeToDir };
 })();
 </script>
 </body>
