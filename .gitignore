@@ -1,5 +1,6 @@
 # build output
 bridge/syphon-bridge
+bridge/Syphon.framework/
 # macOS
 .DS_Store
 # editors

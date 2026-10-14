@@ -39,23 +39,25 @@ git clone https://github.com/sonarkon/Dome-Sim.git
 cd Dome-Sim
 ```
 
-### Without Syphon (any OS)
+Then start it with one double-click (or from the terminal):
 
-```bash
-python3 -m http.server 8765
-```
+| System | Start | What happens |
+|---|---|---|
+| **macOS** | `start.command` | Builds and runs the Syphon bridge and opens <http://localhost:8766>. Without the Xcode Command Line Tools it falls back to the plain server below. |
+| **Windows** | `start.bat` | Plain local server, opens <http://localhost:8765/index.html> (needs Python 3). |
+| **Linux / macOS without Syphon** | `./start.sh` | Plain local server, opens <http://localhost:8765/index.html> (needs Python 3). |
 
-Open <http://localhost:8765/index.html>.
+You can also open `index.html` directly in Chrome; a local server is more robust (e.g. for Safari and camera permissions).
 
-### With Syphon (macOS)
+### Syphon (macOS only)
 
-```bash
-./bridge/start.command
-```
+1. Run `start.command` (first run builds the bridge; needs the Xcode Command Line Tools: `xcode-select --install`).
+2. The bridge needs a **`Syphon.framework`**. It looks next to the binary (`bridge/Syphon.framework`), in `/Library/Frameworks`, in `$SYPHON_FRAMEWORK`, and inside installed apps (Millumin, Resolume, VDMX …). If you have none of those, download the framework from the [Syphon releases](https://github.com/Syphon/Syphon-Framework/releases) and drop `Syphon.framework` into `bridge/`.
+3. In the app choose *Syphon (via bridge)* for a layer and pick the server; enable *Syphon output* to publish the domemaster.
 
-This builds the bridge on first run and opens <http://localhost:8766>. In the app choose *Syphon (via bridge)* for a layer and pick the server; enable *Syphon output* to publish the domemaster.
+Nothing from Syphon is redistributed here. The bridge listens on `127.0.0.1` only.
 
-The bridge loads a `Syphon.framework` at runtime – it looks next to the binary, in `/Library/Frameworks`, in `SYPHON_FRAMEWORK`, and inside installed apps (Millumin, Resolume, VDMX …). Nothing from Syphon is redistributed here. It listens on `127.0.0.1` only.
+> **Downloaded the ZIP instead of cloning?** macOS may block the double-click (“unidentified developer”). Run once: `xattr -dr com.apple.quarantine .` in the project folder, or right-click → Open.
 
 ## Controls (short)
 
