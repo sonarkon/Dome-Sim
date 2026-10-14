@@ -59,6 +59,7 @@ aside{overflow-y:auto;background:var(--panel);padding:10px 14px 40px}
 #panelR>.credits{margin-top:auto;padding:14px 2px 0;border-top:1px solid var(--line);font-size:11px;line-height:1.65;color:var(--dim)}
 #panelR>.credits a{color:inherit}
 #panelR>.credits b{color:var(--fg);font-weight:600}
+body.demo-popup #views,body.demo-popup .edge,body.demo-popup #hint,body.demo-popup #fps{display:none}
 .edge{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:54px;border:1px solid var(--line);background:rgba(20,22,27,.82);color:var(--dim);cursor:pointer;z-index:5;padding:0;font:inherit;font-size:14px;line-height:1}
 .edge:hover{color:var(--fg)}
 #toggleL{left:0;border-radius:0 8px 8px 0;border-left:0}
@@ -204,7 +205,10 @@ const V = {
 const wrapPi = a => a - TAU * Math.floor((a + Math.PI) / TAU);
 /* ───────────── Sprache / Language (DE · EN) ───────────── */
 const LANG_KEY = 'hopedomesim.lang';
+const URLQ = new URLSearchParams(location.search);
+const DEMO = URLQ.get('demo');   // 'inside' | 'popup' – feste Szene, z. B. für README-Screenshots
 const LANG = (() => {
+  if (URLQ.get('lang') === 'de' || URLQ.get('lang') === 'en') return URLQ.get('lang');
   try { const v = localStorage.getItem(LANG_KEY); if (v === 'de' || v === 'en') return v; } catch (e) {}
   return 'en';
 })();
@@ -398,7 +402,7 @@ function deepAssign(t, s) {
     else if (typeof v === typeof t[k]) t[k] = v;
   }
 }
-try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) deepAssign(state, s); } catch (e) {}
+if (!DEMO) { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) deepAssign(state, s); } catch (e) {} }
 state.layers.forEach(L => { if (L.srcType !== 'camera' && L.srcType !== 'syphon') L.srcType = 'test'; });
 state.out.master.on = false; state.out.view.on = false;
 if (state.win.fps === 30 && state.win.max === 2048) { state.win.fps = 60; state.win.max = 4096; }   // alte Voreinstellung (Rücklese-Variante)
@@ -411,9 +415,23 @@ function sanitizeOrder() {
   state.order.length = 0; o.forEach(x => state.order.push(x));
   if (!(state.layers[state.sel] && state.layers[state.sel].used)) state.sel = o.length ? o[o.length - 1] : 0;
 }
+// Demo-Szene (nur mit ?demo=…): zeigt mehrere Layer, ohne etwas zu speichern
+function applyDemo(kind) {
+  const L = state.layers, set = (i, o) => Object.assign(L[i], o);
+  state.project = 'Planetarium demo';
+  set(0, { used: true, name: 'Stage screen', srcType: 'test', testKind: 0, mapping: 0, az: -18, el: 36, size: 58, roll: 0, opacity: 1, blend: 0, feather: 0.06 });
+  set(1, { used: true, name: 'Panorama band', srcType: 'test', testKind: 1, mapping: 3, az: 0, el: 0, size: 360, aspect: 2, opacity: 0.7, blend: 1 });
+  set(2, { used: true, name: 'Side panel', srcType: 'test', testKind: 0, mapping: 0, az: 38, el: 30, size: 30, roll: 0, keyV: 0.3, opacity: 1, blend: 0 });
+  state.order.length = 0; state.order.push(1, 0, 2); state.sel = 0;
+  Object.assign(state.dome, { eyeH: 1.1, spring: 1.25, seatDist: 4.2, seatAng: 180, lens: 0, gridOn: true, grid: 0.4 });
+  Object.assign(state.cam, { yaw: -6, pitch: 30, fovRect: 105 });
+  state.view = kind === 'popup' ? 'master' : 'inside';
+  if (kind === 'popup') { state.dome.gridOn = false; state.showUI = false; }
+}
+if (DEMO) applyDemo(DEMO);
 sanitizeOrder();
 let saveT = 0;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }, 250); }
+function save() { if (DEMO) return; clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }, 250); }
 
 /* ───────────── Geometrie ─────────────
    Ein Layer ist ein Viereck auf der Kuppel. Die Ecken liegen in einer Tangentialebene um das Layer-Zentrum
@@ -2143,6 +2161,7 @@ else {
     if (!mainCtx) throw new Error('WebGL2 nicht verfügbar');
     useCtx(mainCtx);
     buildPanel();
+    if (DEMO === 'popup') { uiPrefs.left = uiPrefs.right = false; document.body.classList.add('demo-popup'); }
     applyPanels();
     new ResizeObserver(resize).observe(document.getElementById('stage')); resize();
     selectLayer(state.sel); setView(state.view); setShowUI(state.showUI); showBtn.classList.toggle('on', state.show.on); resize(); syncUI();
