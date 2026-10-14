@@ -1,0 +1,10 @@
+# build output
+bridge/syphon-bridge
+# macOS
+.DS_Store
+# editors
+.vscode/
+.idea/
+
+# personal notes (not part of the repository)
+private-notes/

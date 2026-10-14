@@ -1,0 +1,2171 @@
+<!doctype html>
+<!--
+  HOPE Dome Sim – browser-based dome projection simulator
+  Created by Sonarkon – https://github.com/sonarkon/Dome-Sim – MIT License
+  Syphon © the Syphon contributors (BSD 2-clause) – used via the optional macOS bridge in ./bridge
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="Sonarkon">
+<meta name="description" content="HOPE Dome Sim – browser-based dome projection simulator by Sonarkon">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOPE Dome Sim</title>
+<style>
+:root{--bg:#0c0d10;--panel:#14161b;--card:#1a1d24;--line:#272b35;--fg:#e7e9ee;--dim:#8a91a0;--a:#ff9a3c;--b:#3cc8ff;--acc:#8aa4ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:12px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:auto minmax(0,1fr) auto;height:100%}
+#app.noL #panelL,#app.noR #panelR{display:none}
+#panelL{grid-column:1;grid-row:1}
+#stage{grid-column:2;grid-row:1}
+#panelR{grid-column:3;grid-row:1}
+#stage{position:relative;min-width:0;overflow:hidden;background:#050608}
+#gl,#ov{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+#ov{touch-action:none;cursor:grab}
+#ov.grabbing{cursor:grabbing}
+#views{position:absolute;left:12px;top:12px;display:flex;gap:2px;background:rgba(20,22,27,.85);border:1px solid var(--line);border-radius:8px;padding:3px;backdrop-filter:blur(8px)}
+#views button{background:none;border:0;color:var(--dim);padding:5px 10px;border-radius:6px;font:inherit;cursor:pointer}
+#views button.on{background:var(--acc);color:#0b0d14;font-weight:600}
+#views kbd{opacity:.55;font:inherit;margin-left:4px}
+#views .sep{width:1px;background:var(--line);margin:3px 4px}
+#views button#uiToggle,#views button#showToggle{display:grid;place-items:center;padding:5px 8px}
+#views button#gridToggle{display:grid;place-items:center;padding:5px 8px;color:var(--dim)}
+#views button#gridToggle.on{color:var(--fg)}
+#views #gridAmt{width:64px;margin:0 6px 0 0;accent-color:var(--acc);align-self:center}
+#views #gridAmt:disabled{opacity:.3}
+#views button#showToggle{color:var(--dim)}
+#views button#showToggle.on{background:var(--acc);color:#0b0d14}
+#views button#uiToggle.on{background:none;color:var(--fg);font-weight:400}
+#views button#uiToggle:not(.on){color:var(--dim)}
+#uiToggle .slash{display:none}
+#uiToggle:not(.on) .slash{display:block;stroke:var(--acc)}
+#hint{position:absolute;left:12px;bottom:10px;color:var(--dim);font-size:11px;background:rgba(12,13,16,.7);padding:4px 8px;border-radius:6px;pointer-events:none;max-width:calc(100% - 190px)}
+#fps{position:absolute;right:12px;bottom:10px;color:var(--dim);font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(12,13,16,.7);padding:4px 8px;border-radius:6px;pointer-events:none;text-align:right;font-variant-numeric:tabular-nums;white-space:pre}
+#fps b{color:var(--fg);font-weight:600}
+#fps .warn{color:#ffb454}
+#fps .bad{color:#ff6b6b}
+#nogl{position:absolute;inset:0;display:grid;place-items:center;font-size:15px}
+#nogl[hidden]{display:none}
+aside{overflow-y:auto;background:var(--panel);padding:10px 14px 40px}
+#panelL{width:330px;border-right:1px solid var(--line)}
+#panelR{width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column}
+#panelR>*{flex:none}
+#panelR>.presetbar{padding:2px 0 8px;border-bottom:1px solid var(--line)}
+#panelR>.presetbar .presetlabel,.seclabel{color:var(--dim);font:600 11px/1.4 inherit;letter-spacing:.08em;text-transform:uppercase;padding:8px 2px 4px}
+.staticsec{border-top:1px solid var(--line);padding-bottom:6px}
+.staticsec:first-of-type{border-top:0}
+#panelR>.presetbar .btns{margin:4px 0 0}
+#panelR>.credits{margin-top:auto;padding:14px 2px 0;border-top:1px solid var(--line);font-size:11px;line-height:1.65;color:var(--dim)}
+#panelR>.credits a{color:inherit}
+#panelR>.credits b{color:var(--fg);font-weight:600}
+.edge{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:54px;border:1px solid var(--line);background:rgba(20,22,27,.82);color:var(--dim);cursor:pointer;z-index:5;padding:0;font:inherit;font-size:14px;line-height:1}
+.edge:hover{color:var(--fg)}
+#toggleL{left:0;border-radius:0 8px 8px 0;border-left:0}
+#toggleR{right:0;border-radius:8px 0 0 8px;border-right:0}
+.sec{border-top:1px solid var(--line)}
+.sec:first-of-type{border-top:0}
+.sechead{display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;color:var(--dim);font:600 11px/1.4 inherit;letter-spacing:.08em;text-transform:uppercase;padding:11px 2px 9px;cursor:pointer;text-align:left}
+.sechead:hover{color:var(--fg)}
+.chev{flex:none;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin:-3px 3px 0 1px;transition:transform .12s}
+.sec.closed>.sechead .chev{transform:rotate(-45deg);margin:0 3px 0 1px}
+.sec.closed>.secbody{display:none}
+.sec.sub{border-top:0}
+.sec.sub>.sechead{font-size:11px;text-transform:none;letter-spacing:0;padding:8px 2px 5px}
+.secbody{padding:0 0 8px}
+.lrow .ib svg{display:block;width:15px;height:15px}
+.lrow .grip{flex:none;display:grid;place-items:center;width:16px;height:20px;margin-left:-4px;color:var(--dim);cursor:grab;touch-action:none;border-radius:4px;opacity:.7}
+.lrow .grip:hover{opacity:1;background:#ffffff14}
+.lrow .grip svg{width:14px;height:14px}
+.lrow.dragging{opacity:.3;border-color:var(--acc)}
+.lrow.ghost{position:fixed;z-index:100000;margin:0;pointer-events:none;border:1px solid var(--acc);border-radius:8px;padding:6px 8px;background:var(--card);box-shadow:0 10px 28px rgba(0,0,0,.55);opacity:.97;font:inherit;color:var(--fg);cursor:grabbing}
+.lrow.drop-above{box-shadow:0 -2px 0 0 var(--acc)}
+.lrow.drop-below{box-shadow:0 2px 0 0 var(--acc)}
+body.dnd,body.dnd *{cursor:grabbing!important}
+.lrow .ib.on{color:var(--acc)}
+aside .projname{width:100%;margin:2px 0 8px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font:inherit;font-size:13px;font-weight:600}
+aside .projname::placeholder{color:var(--dim);font-weight:400}
+aside .projname:focus{outline:none;border-color:var(--acc)}
+aside .brand{font-size:15px;letter-spacing:.02em;margin:2px 0 4px;color:var(--fg)}
+aside .brand b{letter-spacing:.14em;margin-right:4px}
+h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:18px 0 8px;font-weight:600}
+h2:first-child{margin-top:2px}
+h4{margin:12px 0 6px;font-size:11px;color:var(--dim);font-weight:600}
+.row{display:grid;grid-template-columns:96px 1fr 46px;gap:8px;align-items:center;margin:4px 0}
+.row.two{grid-template-columns:96px 1fr}
+.row label{color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .val{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--acc);margin:0}
+select,button.btn,input[type=file]{width:100%;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit}
+button.btn{cursor:pointer}
+button.btn:hover{border-color:var(--acc)}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.btns button.btn{width:auto;flex:1 1 auto}
+.transport{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;margin:6px 0}
+.transport .pp{width:30px;padding:5px 0;display:grid;place-items:center}
+.transport .pp svg{width:14px;height:14px;display:block}
+.transport .tt{color:var(--dim);font-variant-numeric:tabular-nums;font-size:11px;white-space:nowrap}
+button.btn.primary{background:var(--acc);color:#0b0d14;border-color:var(--acc);font-weight:600}
+.btns.icons button.btn{display:grid;place-items:center;padding:5px 0;flex:1 1 0}
+.btns.icons button.btn svg{width:20px;height:18px;display:block}
+.btns.icons button.btn.on{border-color:var(--acc);color:var(--acc)}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tabs button{flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--dim);font:inherit;font-weight:600;cursor:pointer}
+.tabs button.on{color:#0b0d14}
+.tabs button[data-i="0"].on{background:var(--a);border-color:var(--a)}
+.tabs button[data-i="1"].on{background:var(--b);border-color:var(--b)}
+.card{display:none;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px 12px}
+.card.on{display:block}
+.status{color:var(--dim);font-size:11px;margin:4px 0 2px;min-height:15px}
+.chk{display:flex;gap:8px;align-items:center;margin:5px 0}
+.chk input{accent-color:var(--acc)}
+.llist .lrow{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:5px 0;background:var(--card);cursor:grab;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;touch-action:pan-y}
+.llist .lrow button,.llist .lrow select,.llist .lrow input{cursor:pointer}
+.llist .lrow.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.lrow .top{display:flex;gap:4px;align-items:center}
+.lrow .dot{width:10px;height:10px;border-radius:50%;flex:none;margin-right:2px}
+.lrow .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.lrow .ib{background:none;border:0;color:var(--fg);cursor:pointer;padding:2px 5px;border-radius:5px;font:inherit;line-height:1.2}
+.lrow .ib:hover{background:#ffffff14}
+.lrow .ib.off{opacity:.3}
+.lrow .ib:disabled{opacity:.2;cursor:default}
+.lrow .bot{display:grid;grid-template-columns:92px 1fr 38px;gap:8px;align-items:center;margin-top:5px}
+.lrow .bot select{padding:2px 4px;font-size:11px}
+.lrow .bot .v{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+.lrow.locked .nm::after{content:var(--t-locked," · gesperrt");color:var(--dim);font-weight:400}
+aside .langsw{float:right;display:inline-flex;gap:2px;margin-top:1px}
+aside .langsw button{background:none;border:1px solid var(--line);color:var(--dim);font:600 10px/1 inherit;letter-spacing:.06em;padding:4px 6px;border-radius:5px;cursor:pointer}
+aside .langsw button.on{background:var(--acc);border-color:var(--acc);color:#0b0d14}
+aside .credit{font-size:10.5px;color:var(--dim);margin:0 0 6px;letter-spacing:.02em}
+aside .credit a{color:inherit}
+.card.locked .lockable{opacity:.45;pointer-events:none}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-top:10px;color:var(--dim)}
+details summary{cursor:pointer;color:var(--fg)}
+details p,details ol{margin:6px 0;padding-left:16px}
+details p{padding:0}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panelL"></aside>
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <canvas id="ov"></canvas>
+    <div id="views">
+      <button data-v="inside">Innen<kbd>1</kbd></button>
+      <button data-v="outside">Außen<kbd>2</kbd></button>
+      <button data-v="master">Domemaster<kbd>3</kbd></button>
+      <span class="sep"></span>
+      <button id="gridToggle" title="Raster ein-/ausblenden · G" aria-label="Raster ein-/ausblenden">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2v12M3.6 4.6c2.8 1.2 6 1.2 8.8 0M3.6 11.4c2.8-1.2 6-1.2 8.8 0"/>
+        </svg>
+      </button>
+      <input id="gridAmt" type="range" min="0.05" max="1" step="0.01" title="Rasterstärke" aria-label="Rasterstärke">
+      <button id="showToggle" title="Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S" aria-label="Show-Modus">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M2.2 11.5a5.8 5.8 0 1 1 11.6 0"/><path d="M8 11.5 L11 6.5"/><circle cx="8" cy="11.5" r="1" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button id="uiToggle" title="Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R" aria-label="Bedienelemente ein-/ausblenden">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+          <rect x="3.5" y="3.5" width="9" height="9" rx="0.5"/>
+          <g fill="currentColor" stroke="none"><rect x="1.6" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="1.6" y="10.8" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="10.8" width="3.6" height="3.6" rx="0.6"/></g>
+          <path class="slash" d="M1.5 14.5 L14.5 1.5" stroke-width="1.6"/>
+        </svg>
+      </button>
+    </div>
+    <div id="hint"></div>
+    <div id="fps"></div>
+    <button id="toggleL" class="edge" title="Ebenen ein-/ausklappen ([)" aria-label="Ebenen ein-/ausklappen">‹</button>
+    <button id="toggleR" class="edge" title="Ausgabe &amp; Ansicht ein-/ausklappen (])" aria-label="Ausgabe ein-/ausklappen">›</button>
+    <div id="nogl" hidden>WebGL2 ist in diesem Browser nicht verfügbar.</div>
+  </div>
+  <aside id="panelR"></aside>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ───────────── Helfer ───────────── */
+const D2R = Math.PI / 180, R2D = 180 / Math.PI, TAU = Math.PI * 2;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const V = {
+  add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+  sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+  mul: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
+  dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+  cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]),
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; },
+};
+const wrapPi = a => a - TAU * Math.floor((a + Math.PI) / TAU);
+/* ───────────── Sprache / Language (DE · EN) ───────────── */
+const LANG_KEY = 'hopedomesim.lang';
+const LANG = (() => {
+  try { const v = localStorage.getItem(LANG_KEY); if (v === 'de' || v === 'en') return v; } catch (e) {}
+  return 'en';
+})();
+document.documentElement.lang = LANG;
+const IS_MAC = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '');
+// Quelltexte sind deutsch; EN übersetzt sie. T() übersetzt einen Text, Tf() einen Text mit {0}, {1} … Platzhaltern.
+const EN = {
+  'Innen': 'Inside', 'Außen': 'Outside', 'Domemaster': 'Domemaster',
+  'Ebenen': 'Layers', 'Layer-Einstellungen': 'Layer settings', '+ Layer hinzufügen': '+ Add layer', 'Name': 'Name',
+  'Quelle': 'Source', 'Typ': 'Type', 'Testbild': 'Test pattern', 'Syphon (über Brücke)': 'Syphon (via bridge)',
+  'Kamera / Virtual Cam': 'Camera / virtual cam', 'Fenster / Bildschirm': 'Window / screen', 'Videodatei': 'Video file', 'Video- oder Bilddatei': 'Video / image file',
+  '16:9 Rechteck': '16:9 rectangle', '2:1 Panorama (Equirect)': '2:1 panorama (equirect)', '1:1 Domemaster (Fisheye)': '1:1 domemaster (fisheye)',
+  'Syphon-Server': 'Syphon server', '— Server wählen —': '— choose server —', '— Brücke nicht verbunden —': '— bridge not connected —',
+  'Übertragung': 'Transfer', '960 px breit': '960 px wide', '1280 px breit': '1280 px wide', '1920 px breit': '1920 px wide', '2560 px breit': '2560 px wide',
+  'Original': 'Original', 'Server-Liste aktualisieren': 'Refresh server list',
+  'Gerät': 'Device', 'Standardkamera': 'Default camera', '— zuerst „Geräte laden“ —': '— load devices first —',
+  'Geräte laden': 'Load devices', 'Neu verbinden': 'Reconnect', 'Fenster / Bildschirm wählen …': 'Choose window / screen …', 'Datei': 'File',
+  'Zuschnitt der Quelle': 'Source crop', 'Links abschn.': 'Crop left', 'Rechts abschn.': 'Crop right', 'Oben abschn.': 'Crop top', 'Unten abschn.': 'Crop bottom',
+  'Ganzes Bild': 'Whole image', 'Linke Hälfte': 'Left half', 'Rechte Hälfte': 'Right half', 'Obere Hälfte': 'Top half', 'Untere Hälfte': 'Bottom half',
+  'Horizontal spiegeln': 'Flip horizontally', 'Vertikal spiegeln': 'Flip vertically',
+  'Platzierung auf der Kuppel': 'Placement on dome', 'Mapping': 'Mapping',
+  'Flach – Screen vor dem Publikum (Viereck)': 'Flat – screen in front of audience (quad)',
+  'Viereck in der Domemaster-Ebene': 'Quad in domemaster plane', 'Viereck in Azimut/Elevation': 'Quad in azimuth/elevation',
+  'Panorama-Band 360° (Equirect)': 'Panorama band 360° (equirect)', 'Domemaster-Vollbild (1:1 Fisheye)': 'Full domemaster (1:1 fisheye)',
+  'Azimut / Dreh.': 'Azimuth / rot.', 'Elevation': 'Elevation', 'Größe (Breite)': 'Size (width)', 'Roll': 'Roll',
+  'Seitenverhältnis folgt Quelle': 'Aspect follows source', 'Seitenverh.': 'Aspect',
+  'Trapez vertikal': 'Keystone vertical', 'Trapez horizontal': 'Keystone horizontal',
+  'Trapez vertikal: + = oben schmaler, − = oben breiter. Trapez horizontal: + = rechte Kante niedriger, − = linke Kante niedriger. Feinschliff über die Eckpunkte im Viewport.':
+    'Keystone vertical: + = narrower at top, − = wider at top. Keystone horizontal: + = right edge lower, − = left edge lower. Fine-tune with the corner handles in the viewport.',
+  'Verzerrung zurücksetzen': 'Reset distortion',
+  'Ecken ziehen = perspektivisch verzerren · Fläche ziehen = verschieben · Alt+Scrollen = skalieren':
+    'Drag corners = perspective warp · drag surface = move · Alt+scroll = scale',
+  'Darstellung': 'Appearance', 'Deckkraft': 'Opacity', 'Blend': 'Blend', 'Randweiche': 'Edge feather', 'Randweiche pro Seite': 'Feather per side',
+  'Links': 'Left', 'Rechts': 'Right', 'Oben': 'Top', 'Unten': 'Bottom', 'Verlauf': 'Falloff',
+  'kompakt': 'compact', 'normal': 'normal', 'weit': 'wide',
+  'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.':
+    'Edge feather = width of the transition (100 % reaches the image center). Falloff = curve shape: compact keeps the image bright up to near the edge and fades quickly there, wide darkens gently over the whole edge zone.',
+  'Rand erweitern (Hintergrund füllen)': 'Extend edges (fill background)', 'Modus': 'Mode', 'Aus': 'Off',
+  'Rand-Pixel strecken': 'Stretch edge pixels', 'Randfarbe füllen (Median)': 'Fill with edge color (median)', 'Rand-Einzug': 'Edge inset',
+  'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.':
+    'For videos on a solid background: the edge is extended over the whole dome. “Edge color” uses the most common color of the image borders (robust against noise); “edge feather” blends the video softly into the background. “Edge inset” reads the color slightly further inside – needed when the source has a thin black border line.',
+  'Ansicht & Kuppel': 'View & dome', 'Durchmesser': 'Diameter', 'Augenhöhe': 'Eye height', 'Kuppelrand': 'Dome rim',
+  'Kuppelrand auf Augenhöhe': 'Dome rim at eye height', 'Sitz: Abstand': 'Seat: distance', 'Sitz: Winkel': 'Seat: angle',
+  '(0=vorn)': '(0=front)', 'Linse (Innen)': 'Lens (inside)', 'Rechtwinklig': 'Rectilinear', 'Fisheye (equidistant)': 'Fisheye (equidistant)',
+  'Blickfeld': 'Field of view', 'Raster': 'Grid', 'Kuppel-Grundhell.': 'Dome base light',
+  'Blick zurücksetzen': 'Reset view', 'Sitz in die Mitte': 'Seat to center',
+  'Domemaster-Fenster': 'Domemaster window', 'Domemaster in eigenem Fenster öffnen': 'Open domemaster in its own window',
+  'Fenster-Rate': 'Window rate', 'Max. Auflösung': 'Max. resolution', 'Kein Fenster geöffnet': 'No window open',
+  'Zeigt das 1:1-Domemaster ohne Raster und Rahmen, unabhängig vom Show-Modus. Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls.':
+    'Shows the 1:1 domemaster without grid and frames, independent of show mode. Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too.',
+  'Syphon': 'Syphon', 'Brücke neu verbinden': 'Reconnect bridge', 'Servername': 'Server name', 'Größe': 'Size',
+  'Domemaster 1:1 (Fisheye) ausgeben': 'Output domemaster 1:1 (fisheye)', 'Aktuelle Ansicht (16:9) ausgeben': 'Output current view (16:9)',
+  'Bildrate': 'Frame rate', 'Ausgabe vertikal spiegeln': 'Flip output vertically', 'Ausgabe aus': 'Output off',
+  'Rohe Frames über localhost: 1024 px ≈ 4 MB pro Bild, 2048 px ≈ 16 MB.': 'Raw frames over localhost: 1024 px ≈ 4 MB per frame, 2048 px ≈ 16 MB.',
+  'Syphon einrichten': 'Syphon setup',
+  'Show-Modus': 'Show mode', 'Show-Modus (nur die Vorschau drosseln)': 'Show mode (throttle only the preview)',
+  'Anzeige-Rate': 'Preview rate', 'Anzeige-Größe': 'Preview size',
+  'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.':
+    'Affects only the preview in the main window. Syphon outputs and the domemaster window keep their size and rate.',
+  'Preset': 'Preset', 'Exportieren': 'Export', 'Importieren': 'Import', 'Alles zurücksetzen': 'Reset all',
+  'Ziehen, um die Reihenfolge zu ändern': 'Drag to change the order', 'Sichtbar / ausgeblendet': 'Visible / hidden',
+  'Sperren / entsperren': 'Lock / unlock', 'Nach oben (vor die anderen)': 'Move up (in front of the others)',
+  'Nach unten': 'Move down', 'Layer löschen': 'Delete layer',
+  'gesperrt': 'locked',
+  'Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S': 'Show mode: throttle the local preview so the Syphon output gets more GPU · S',
+  'Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R': 'Show / hide controls (frames, corner handles, labels) · R',
+  'Bedienelemente ein-/ausblenden': 'Show / hide controls',
+  'Ebenen ein-/ausklappen ([)': 'Collapse / expand layers ([)', 'Ebenen ein-/ausklappen': 'Collapse / expand layers',
+  'Ausgabe & Ansicht ein-/ausklappen (])': 'Collapse / expand output & view (])', 'Ausgabe ein-/ausklappen': 'Collapse / expand output',
+  'WebGL2 ist in diesem Browser nicht verfügbar.': 'WebGL2 is not available in this browser.',
+  // Status / Meldungen
+  'Testbild ': 'Test pattern ',
+  'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten': 'Capture ended – restart with “Choose window / screen”',
+  'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.':
+    'Window capture is not supported by this browser (getDisplayMedia). Please use Chrome or Safari.',
+  ' – der Browser verlangt einen direkten Klick auf den Button': ' – the browser requires a direct click on the button',
+  ' – Auswahl abgebrochen oder Bildschirmaufnahme nicht erlaubt (macOS: Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → Browser aktivieren, danach Browser neu starten)':
+    ' – selection cancelled or screen recording not allowed (macOS: System Settings → Privacy & Security → Screen & System Audio Recording → enable the browser, then restart it)',
+  'Bereit – unten auf „Fenster / Bildschirm wählen …“ klicken (der Browser verlangt dafür einen direkten Klick).':
+    'Ready – click “Choose window / screen …” below (the browser requires a direct click).',
+  'Datei wählen …': 'Choose file …', 'Server wählen …': 'Choose server …', 'Brücke nicht verbunden': 'Bridge not connected',
+  ' · verbinde …': ' · connecting …',
+  'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)': 'Bridge not connected – start ./syphon-bridge in the “bridge” folder (or start.command)',
+  'Fenster geschlossen': 'Window closed', 'WebGL2 im Fenster nicht verfügbar': 'WebGL2 not available in the window',
+  'Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild': 'Window open – drag it to the external monitor, double-click or F = fullscreen',
+  'Popup blockiert – bitte Popups für diese Seite erlauben.': 'Popup blocked – please allow popups for this page.',
+  'Ungültige Verzerrung – Ecken zurücksetzen': 'Invalid distortion – reset corners',
+  '  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°': '  ·  Reference: 4K master ≈ 23 px/°, 2K ≈ 11 px/°',
+  'Syphon-Server nicht gefunden': 'Syphon server not found', 'Client konnte nicht erstellt werden': 'Client could not be created',
+  'Syphon-Server konnte nicht erstellt werden': 'Syphon server could not be created',
+  // Overlay / HUD / Hinweise
+  'Augenhöhe ': 'Eye height ', 'Versatz zur Mitte': 'offset to center', 'Sitz': 'Seat', 'Auge': 'eye', 'ziehen': 'drag',
+  ' · Show-Modus': ' · show mode', 'Syphon-Ausgabe': 'Syphon output', 'ms/Bild': 'ms/frame',
+  'Domemaster (unten = vorne) · Ecken ziehen: Perspektive · Fläche ziehen: verschieben · Alt+Scrollen: skalieren · Tab: Layer · H: Spalten · F: Vollbild':
+    'Domemaster (bottom = front) · drag corners: perspective · drag surface: move · Alt+scroll: scale · Tab: layer · H: columns · F: fullscreen',
+  'Ziehen: umsehen · Zwei Finger ↑↓: Augenhöhe, ←→: um die Kuppel gehen · Cmd+↑↓: Sitzabstand · Pinch/+/−: Zoom · Alt+Scrollen: Layer skalieren · Ecken ziehen: Perspektive':
+    'Drag: look around · two fingers ↑↓: eye height, ←→: walk around the dome · Cmd+↑↓: seat distance · pinch/+/−: zoom · Alt+scroll: scale layer · drag corners: perspective',
+  'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren':
+    'Drag: orbit · drag the yellow seat: audience position · two fingers ↑↓: distance · drag corners: perspective · Alt+scroll: scale layer',
+  'Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild':
+    'Controls hidden · drag: look around · R: show frames again · H: columns · F: fullscreen',
+  // Testbilder
+  '↖ OBEN LINKS': '↖ TOP LEFT', 'OBEN RECHTS ↗': 'TOP RIGHT ↗', 'UNTEN LINKS': 'BOTTOM LEFT', 'UNTEN RECHTS': 'BOTTOM RIGHT',
+  'VORNE': 'FRONT', 'HINTEN': 'BACK', 'LINKS': 'LEFT', 'RECHTS': 'RIGHT',
+  'VORNE (Azimut 0°) – Horizont = Mittellinie': 'FRONT (azimuth 0°) – horizon = center line',
+  'ZENIT ↑ (oberer Rand)': 'ZENITH ↑ (top edge)', 'HINTEN (±180°)': 'BACK (±180°)',
+  'Rand = Horizont 0°': 'Edge = horizon 0°', 'Zenit 90°': 'Zenith 90°',
+  // Vorlagen mit Platzhaltern
+  'Kamera-Fehler: {0}': 'Camera error: {0}',
+  'Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.': 'Window capture failed: {0}{1}. Try again with “Choose window / screen”.',
+  'Brücke verbunden · {0} Syphon-Server gefunden': 'Bridge connected · {0} Syphon servers found',
+  'Läuft als Syphon-Server: {0}': 'Running as Syphon server: {0}',
+  'Server „{0}“ nicht gefunden': 'Server “{0}” not found',
+  '{0} · verbinde …': '{0} · connecting …',
+  'Fehler: {0}': 'Error: {0}',
+  'Kamera {0}': 'Camera {0}',
+  'Ausschnitt: {0} % × {1} %': 'Region: {0} % × {1} %',
+  '  ({0} × {1} px)': '  ({0} × {1} px)',
+  'Fisheye-Vollbild: Bildrand = {0}° Zenitdistanz · {1} px/° (Quelle {2} px)': 'Full fisheye: image edge = {0}° zenith distance · {1} px/° (source {2} px)',
+  'Panorama {0}° × {1}° · {2} px/° (Quelle {3} px)': 'Panorama {0}° × {1}° · {2} px/° (source {3} px)',
+  'Winkelgröße {0}° × {1}° ≈ {2} × {3} m an der Kuppel · {4} px/° (Quelle {5} px)': 'Angular size {0}° × {1}° ≈ {2} × {3} m on the dome · {4} px/° (source {5} px)',
+  'Auge zur Kuppelmitte: {0}{1} m  (Kuppelrand = Höhe über Boden; darunter Rundwand)': 'Eye to dome center: {0}{1} m  (dome rim = height above floor; wall below)',
+  'Preset ungültig: {0}': 'Invalid preset: {0}',
+  'Syphon-Ausgabe <b>{0}</b> fps · {1} ms/Bild': 'Syphon output <b>{0}</b> fps · {1} ms/frame',
+  'Augenhöhe {0} m · Kuppelrand {1} m · Versatz zur Mitte {2}{3} m': 'Eye height {0} m · dome rim {1} m · offset to center {2}{3} m',
+  'Sitz {0} m @ {1}° · FOV {2}°': 'Seat {0} m @ {1}° · FOV {2}°',
+  'Sitz · {0} m · Auge {1} m  (ziehen)': 'Seat · {0} m · eye {1} m  (drag)',
+  'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.':
+    'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.',
+  'Sprache': 'Language', 'Projektname': 'Project name',
+  'Raster ein-/ausblenden · G': 'Show / hide grid · G', 'Raster ein-/ausblenden': 'Show / hide grid', 'Rasterstärke': 'Grid strength',
+  'Abspielen': 'Play', 'Pause': 'Pause', 'Zeitleiste': 'Timeline',
+  'Bild konnte nicht geladen werden: {0}': 'Could not load image: {0}',
+  'Info & Credits': 'Info & credits',
+};
+function T(s) { return (LANG === 'en' && s != null && EN[s] !== undefined) ? EN[s] : s; }
+function Tf(key, ...args) { return T(key).replace(/\{(\d+)\}/g, (_, n) => args[+n]); }
+const BRIDGE_ERR = { server_not_found: 'Syphon-Server nicht gefunden', client_failed: 'Client konnte nicht erstellt werden', server_create_failed: 'Syphon-Server konnte nicht erstellt werden' };
+// statische HTML-Texte (Ansichtsleiste, Tooltips) einmalig übersetzen
+function translateStatic() {
+  document.documentElement.style.setProperty('--t-locked', JSON.stringify(' · ' + T('gesperrt')));
+  if (LANG === 'de') return;
+  const w = document.createTreeWalker(document.getElementById('app'), NodeFilter.SHOW_TEXT);
+  let n; while ((n = w.nextNode())) { const v = n.nodeValue.trim(); if (v && EN[v] !== undefined) n.nodeValue = n.nodeValue.replace(v, EN[v]); }
+  document.querySelectorAll('#app [title], #app [aria-label]').forEach(el => {
+    ['title', 'aria-label'].forEach(a => { const v = el.getAttribute(a); if (v && EN[v] !== undefined) el.setAttribute(a, EN[v]); });
+  });
+}
+function h(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = T(text); return e; }
+
+/* ───────────── Zustand ───────────── */
+const KEY = 'domesim.v1';
+const MAXL = 8;
+const LABELS = 'ABCDEFGH';
+const COLORS = ['#ff9a3c', '#3cc8ff', '#7ee07a', '#e06bd6', '#ffd23c', '#ff6b6b', '#9d8bff', '#4fe0c4'];
+const BLEND_OPTS = [[0, 'Over'], [1, 'Add'], [3, 'Subtract'], [4, 'Multiply'], [2, 'Screen']];
+const defLayer = i => ({
+  used: i < 2, locked: false, name: 'Layer ' + LABELS[i],
+  on: true, srcType: 'test', deviceId: '', testKind: 0,
+  syphonUUID: '', syphonApp: '', syphonName: '', syphonRes: 1280,
+  mapping: 0, az: i === 0 ? -24 : i === 1 ? 28 : ((i * 67) % 200) - 100, el: i === 0 ? 40 : i === 1 ? 36 : 28 + (i * 9) % 30, roll: 0, size: i === 0 ? 62 : i === 1 ? 42 : 40,
+  aspect: 16 / 9, autoAspect: true,
+  ox: [0, 0, 0, 0], oy: [0, 0, 0, 0],           // Eckpunkt-Offsets (BL, BR, TR, TL), relativ zur halben Größe
+  opacity: 1, blend: 0, feather: 0, fCurve: 0.5, keyH: 0, keyV: 0, feSplit: false, fe: [0, 0, 0, 0],   // fe: links, rechts, oben, unten
+  extend: 0, extInset: 0.01,   // extend: 0 aus, 1 Rand-Pixel strecken, 2 Randfarbe füllen
+  crop: [0, 0, 1, 1],                           // x0, y0(oben), x1, y1(unten)
+  flipX: false, flipY: false,
+});
+const defState = () => ({
+  project: '',   // Projektname (Anzeige, Preset-Dateiname)
+  view: 'inside',
+  dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true },
+  cam: { yaw: 0, pitch: 38, fovRect: 100, fovFish: 180, outYaw: -28, outPitch: 18, outDist: 3.4, outFov: 32 },
+  layers: Array.from({ length: MAXL }, (_, i) => defLayer(i)),
+  order: [0, 1],   // Zeichenreihenfolge, unten → oben (Layer-IDs)
+  out: { fps: 30, flip: false,
+         master: { on: false, name: 'HOPE Dome Sim Domemaster', size: 1024 },
+         view: { on: false, name: 'HOPE Dome Sim Ansicht', size: 1280 } },
+  sel: 0,
+  showUI: true,   // Rahmen, Griffe und Labels im Viewport
+  show: { on: false, fps: 15, scale: 0.5 },
+  win: { fps: 60, max: 4096 },   // separates Domemaster-Fenster   // Show-Modus: lokale Anzeige drosseln, Ausgabe bleibt voll
+});
+const state = defState();
+function deepAssign(t, s) {
+  for (const k in s) {
+    const v = s[k];
+    if (!(k in t)) continue;
+    if (Array.isArray(v)) { if (Array.isArray(t[k])) v.forEach((x, i) => { if (typeof x === 'object' && x) deepAssign(t[k][i], x); else t[k][i] = x; }); }
+    else if (v && typeof v === 'object') deepAssign(t[k], v);
+    else if (typeof v === typeof t[k]) t[k] = v;
+  }
+}
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) deepAssign(state, s); } catch (e) {}
+state.layers.forEach(L => { if (L.srcType !== 'camera' && L.srcType !== 'syphon') L.srcType = 'test'; });
+state.out.master.on = false; state.out.view.on = false;
+if (state.win.fps === 30 && state.win.max === 2048) { state.win.fps = 60; state.win.max = 4096; }   // alte Voreinstellung (Rücklese-Variante)
+if (state.out.master.name === 'Dome Sim Domemaster') state.out.master.name = 'HOPE Dome Sim Domemaster';
+if (state.out.view.name === 'Dome Sim Ansicht') state.out.view.name = 'HOPE Dome Sim Ansicht';
+function sanitizeOrder() {
+  const seen = new Set(), o = [];
+  (state.order || []).forEach(id => { if (Number.isInteger(id) && state.layers[id] && state.layers[id].used && !seen.has(id)) { seen.add(id); o.push(id); } });
+  state.layers.forEach((L, i) => { if (L.used && !seen.has(i)) { seen.add(i); o.push(i); } });
+  state.order.length = 0; o.forEach(x => state.order.push(x));
+  if (!(state.layers[state.sel] && state.layers[state.sel].used)) state.sel = o.length ? o[o.length - 1] : 0;
+}
+sanitizeOrder();
+let saveT = 0;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }, 250); }
+
+/* ───────────── Geometrie ─────────────
+   Ein Layer ist ein Viereck auf der Kuppel. Die Ecken liegen in einer Tangentialebene um das Layer-Zentrum
+   (az/el/roll). Das "Mapping" bestimmt, in welcher Ebene der Inhalt zwischen den Ecken interpoliert wird:
+   0 = Tangentialebene (gnomonisch, wirkt wie ein flacher Screen), 1 = Domemaster-Ebene, 2 = Azimut/Elevation. */
+function frameOf(az, el, roll) {
+  const c = [Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az)];
+  const r0 = [Math.cos(az), 0, Math.sin(az)];
+  const u0 = V.cross(r0, c);
+  const cr = Math.cos(roll), sr = Math.sin(roll);
+  return {
+    c,
+    r: [r0[0]*cr + u0[0]*sr, r0[1]*cr + u0[1]*sr, r0[2]*cr + u0[2]*sr],
+    u: [-r0[0]*sr + u0[0]*cr, -r0[1]*sr + u0[1]*cr, -r0[2]*sr + u0[2]*cr],
+  };
+}
+function dirToPlane(mode, d, G) {
+  if (mode === 0) { const s = Math.max(V.dot(d, G.c), 0.02); return [V.dot(d, G.r) / s, V.dot(d, G.u) / s]; }
+  if (mode === 1) {
+    const y = clamp(d[1], -1, 1), sn = Math.max(Math.sqrt(1 - y*y), 1e-5), k = Math.acos(y) / (Math.PI / 2) / sn;
+    return [d[0] * k, d[2] * k];                  // Domemaster: vorne = unten, rechts = +x
+  }
+  return [wrapPi(Math.atan2(d[0], -d[2]) - G.azc), Math.asin(clamp(d[1], -1, 1))];
+}
+function planeToDir(mode, p, G) {
+  if (mode === 0) return V.norm(V.add(G.c, V.add(V.mul(G.r, p[0]), V.mul(G.u, p[1]))));
+  if (mode === 1) {
+    const rho = Math.hypot(p[0], p[1]), th = rho * Math.PI / 2, az = Math.atan2(p[0], p[1]);
+    return [Math.sin(th) * Math.sin(az), Math.cos(th), Math.sin(th) * Math.cos(az)];
+  }
+  const az = G.azc + p[0], el = p[1];
+  return [Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az)];
+}
+// Einheitsquadrat (0,0)(1,0)(1,1)(0,1) → Viereck P0..P3 (Heckbert). Rückgabe row-major [a b c d e f g h 1]
+function squareToQuad(P) {
+  const [x0, y0] = P[0], [x1, y1] = P[1], [x2, y2] = P[2], [x3, y3] = P[3];
+  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3;
+  const dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+  let g = 0, hh = 0;
+  if (Math.abs(dx3) > 1e-12 || Math.abs(dy3) > 1e-12) {
+    const den = dx1 * dy2 - dx2 * dy1;
+    if (Math.abs(den) < 1e-12) return null;
+    g = (dx3 * dy2 - dx2 * dy3) / den;
+    hh = (dx1 * dy3 - dx3 * dy1) / den;
+  }
+  const m = [x1 - x0 + g * x1, x3 - x0 + hh * x3, x0, y1 - y0 + g * y1, y3 - y0 + hh * y3, y0, g, hh, 1];
+  return m.every(Number.isFinite) ? m : null;
+}
+// Adjungierte (Plane → UV), Vorzeichen so normiert, dass q.z im Zentrum > 0
+function invertH(m) {
+  const [a, b, c, d, e, f, g, hh] = m;
+  const adj = [
+    e - f*hh,  c*hh - b,  b*f - c*e,
+    f*g - d,   a - c*g,   c*d - a*f,
+    d*hh - e*g, b*g - a*hh, a*e - b*d,
+  ];
+  const det = a*adj[0] + b*adj[3] + c*adj[6];
+  const wc = 0.5*g + 0.5*hh + 1;
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-14 || Math.abs(wc) < 1e-9) return null;
+  const s = Math.sign(det / wc), mx = Math.max(...adj.map(Math.abs)) || 1;
+  return adj.map(v => v * s / mx);
+}
+function geom(L) {
+  const az = L.az * D2R, f = frameOf(az, L.el * D2R, L.roll * D2R);
+  const hw = Math.tan(clamp(L.size, 1, 170) * D2R / 2), hh = hw / L.aspect;
+  const G = { c: f.c, r: f.r, u: f.u, azc: az, hw, hh, sx: [-1, 1, 1, -1], sy: [-1, -1, 1, 1], dirs: [], pano: 0 };
+  if (L.mapping >= 3) {   // Panorama (3) / Domemaster-Vollbild (4): analytisches Mapping, keine Ecken
+    const w = L.size * D2R;
+    G.pano = L.mapping; G.ok = true; G.Hinv = null; G.M = null;
+    G.pan = L.mapping === 3 ? [az, L.el * D2R, w, w / L.aspect] : [az, 0, 180 / clamp(L.size, 5, 360), 0];
+    return G;
+  }
+  // Trapezkorrektur: keyV > 0 = oben schmaler, keyH > 0 = rechts niedriger (addiert sich zu den freien Eckpunkt-Offsets)
+  const kv = clamp(L.keyV, -0.95, 0.95) / 2, kh = clamp(L.keyH, -0.95, 0.95) / 2;
+  G.kx = []; G.ky = [];
+  for (let i = 0; i < 4; i++) {
+    const q = -G.sx[i] * G.sy[i];
+    G.kx.push(q * kv); G.ky.push(q * kh);
+    const x = hw * (G.sx[i] + L.ox[i] + G.kx[i]), y = hh * (G.sy[i] + L.oy[i] + G.ky[i]);
+    G.dirs.push(V.norm(V.add(f.c, V.add(V.mul(f.r, x), V.mul(f.u, y)))));
+  }
+  G.M = squareToQuad(G.dirs.map(d => dirToPlane(L.mapping, d, G)));
+  G.Hinv = G.M ? invertH(G.M) : null;
+  G.ok = !!G.Hinv;
+  return G;
+}
+function rotPlane(p, a) { const cs = Math.cos(a), sn = Math.sin(a); return [cs * p[0] + sn * p[1], -sn * p[0] + cs * p[1]]; }
+function layerUV(G, L, d) {
+  if (G.pano === 3) return [wrapPi(Math.atan2(d[0], -d[2]) - G.pan[0]) / G.pan[2] + 0.5, (Math.asin(clamp(d[1], -1, 1)) - G.pan[1]) / G.pan[3] + 0.5];
+  if (G.pano === 4) { const p = rotPlane(dirToPlane(1, d, null), G.pan[0]); return [p[0] * G.pan[2] * 0.5 + 0.5, p[1] * G.pan[2] * 0.5 + 0.5]; }
+  if (!G.Hinv) return null;
+  const p = dirToPlane(L.mapping, d, G), m = G.Hinv;
+  const x = m[0]*p[0] + m[1]*p[1] + m[2], y = m[3]*p[0] + m[4]*p[1] + m[5], z = m[6]*p[0] + m[7]*p[1] + m[8];
+  if (L.mapping === 0 && V.dot(d, G.c) < 0.02) return null;
+  if (z <= 0) return null;
+  return [x / z, y / z];
+}
+function uvToDir(G, L, u, v) {
+  if (G.pano === 3) return planeToDir(2, [(u - 0.5) * G.pan[2], G.pan[1] + (v - 0.5) * G.pan[3]], { azc: G.pan[0] });
+  if (G.pano === 4) { const k = 2 / G.pan[2]; return planeToDir(1, rotPlane([(u - 0.5) * k, (v - 0.5) * k], -G.pan[0]), null); }
+  const m = G.M, w = m[6]*u + m[7]*v + 1;
+  return planeToDir(L.mapping, [(m[0]*u + m[1]*v + m[2]) / w, (m[3]*u + m[4]*v + m[5]) / w], G);
+}
+
+/* ───────────── Kamera / Projektion ───────────── */
+let W = 1, H = 1, DPR = 1;
+function seatPos() {
+  const d = state.dome, R = d.diameter / 2, sa = d.seatAng * D2R, sd = Math.min(d.seatDist / R, 0.95);
+  return [sd * Math.sin(sa), (d.eyeH - d.spring) / R, -sd * Math.cos(sa)];
+}
+function floorY() { return -state.dome.spring / (state.dome.diameter / 2); }
+function cam(view = state.view) {
+  if (view === 'master') return { kind: 'master', asp: W / H };
+  const outside = view === 'outside', c = state.cam;
+  const yaw = (outside ? c.outYaw : c.yaw) * D2R, pit = (outside ? -c.outPitch : c.pitch) * D2R;
+  const fwd = [Math.sin(yaw) * Math.cos(pit), Math.sin(pit), -Math.cos(yaw) * Math.cos(pit)];
+  const right = [Math.cos(yaw), 0, Math.sin(yaw)], up = V.cross(right, fwd);
+  const lens = outside ? 0 : state.dome.lens;
+  const fov = (outside ? c.outFov : (lens ? c.fovFish : c.fovRect)) * D2R;
+  const eye = outside ? V.sub([0, 0.3, 0], V.mul(fwd, c.outDist)) : seatPos();
+  return { kind: '3d', outside, eye, fwd, right, up, lens, fov, tanH: Math.tan(fov / 2), asp: W / H };
+}
+function dirToScreen(P, c) {
+  let nx, ny;
+  if (c.kind === 'master') {
+    const p = dirToPlane(1, P, null);
+    nx = p[0] * 0.92 / c.asp; ny = p[1] * 0.92;
+  } else {
+    const rel = V.sub(P, c.eye), z = V.dot(rel, c.fwd), x = V.dot(rel, c.right), y = V.dot(rel, c.up);
+    if (c.lens === 0) {
+      if (z <= 1e-4) return null;
+      nx = x / (z * c.tanH * c.asp); ny = y / (z * c.tanH);
+    } else {
+      const ang = Math.acos(clamp(z / V.len(rel), -1, 1)), r = ang / (c.fov / 2);
+      if (r > 1.0) return null;
+      const phi = Math.atan2(y, x);
+      nx = r * Math.cos(phi) / c.asp; ny = r * Math.sin(phi);
+    }
+  }
+  return [(nx * 0.5 + 0.5) * W, (1 - (ny * 0.5 + 0.5)) * H];
+}
+function camRay(nx, ny, c) {
+  const qx = nx * c.asp, qy = ny;
+  if (c.lens === 0) return V.norm(V.add(c.fwd, V.add(V.mul(c.right, qx * c.tanH), V.mul(c.up, qy * c.tanH))));
+  const r = Math.hypot(qx, qy);
+  if (r > 1) return null;
+  const ang = r * c.fov / 2, dx = qx / (r || 1), dy = qy / (r || 1);
+  return V.add(V.mul(c.fwd, Math.cos(ang)), V.mul(V.add(V.mul(c.right, dx), V.mul(c.up, dy)), Math.sin(ang)));
+}
+function screenToDir(sx, sy, c) {
+  const nx = sx / W * 2 - 1, ny = 1 - sy / H * 2;
+  if (c.kind === 'master') {
+    const px = nx * c.asp / 0.92, py = ny / 0.92, r = Math.hypot(px, py);
+    if (r > 1) return null;
+    const th = r * Math.PI / 2, az = Math.atan2(px, py);
+    return [Math.sin(th) * Math.sin(az), Math.cos(th), Math.sin(th) * Math.cos(az)];
+  }
+  const rd = camRay(nx, ny, c);
+  if (!rd) return null;
+  const b = V.dot(c.eye, rd), cc = V.dot(c.eye, c.eye) - 1, disc = b*b - cc;
+  if (disc < 0) return null;
+  const t = -b + Math.sqrt(disc);
+  if (t <= 0) return null;
+  const P = V.add(c.eye, V.mul(rd, t));
+  if (P[1] < -0.02) return null;
+  return V.norm(P);
+}
+
+/* ───────────── Shader ───────────── */
+const VS = `#version 300 es
+void main(){ vec2 p=vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2)); gl_Position=vec4(p*2.-1.,0.,1.); }`;
+const FS = `#version 300 es
+precision highp float;
+out vec4 outc;
+const float PI=3.14159265359;
+uniform vec2 uRes;
+uniform int uView;              // 0 innen, 1 außen, 2 domemaster
+uniform vec3 uEye, uRight, uUp, uFwd, uSeat;
+uniform float uTanH, uFishH;
+uniform int uLens;
+uniform float uBase, uGrid, uMS, uOutBg, uRingK, uFlipY, uBGR, uFloorY;
+uniform sampler2D uTex0, uTex1;
+uniform float uOn[2], uOpacity[2], uFeather[2], uAz[2];
+uniform int uMode[2], uBlend[2];
+uniform vec3 uC[2], uR[2], uU[2];
+uniform mat3 uH[2];
+uniform vec4 uCrop[2];
+uniform vec4 uPan[2];
+uniform int uExt[2];
+uniform vec3 uFill[2];
+uniform float uAsp[2], uInset[2];
+uniform vec4 uFeath[2];
+uniform float uFGam[2];
+uniform vec2 uFlip[2];
+
+float wrapPi(float a){ return a-2.*PI*floor((a+PI)/(2.*PI)); }
+
+vec4 layerCol(int i, sampler2D tex, vec3 d){
+  if(uOn[i]<0.5) return vec4(0.);
+  vec2 p, uv; float ok=1.;
+  int m=uMode[i];
+  if(m==3){
+    uv=vec2(wrapPi(atan(d.x,-d.z)-uPan[i].x)/uPan[i].z+.5, (asin(clamp(d.y,-1.,1.))-uPan[i].y)/uPan[i].w+.5);
+  } else if(m==4){
+    float y=clamp(d.y,-1.,1.); float sn=max(sqrt(1.-y*y),1e-5); float k=acos(y)/(0.5*PI)/sn;
+    p=vec2(d.x,d.z)*k;
+    float cs=cos(uPan[i].x), sa=sin(uPan[i].x);
+    p=vec2(cs*p.x+sa*p.y, -sa*p.x+cs*p.y);
+    uv=p*uPan[i].z*.5+.5;
+  } else {
+    if(m==0){ float s=dot(d,uC[i]); ok=step(0.02,s); s=max(s,0.02); p=vec2(dot(d,uR[i]),dot(d,uU[i]))/s; }
+    else if(m==1){ float y=clamp(d.y,-1.,1.); float sn=max(sqrt(1.-y*y),1e-5); float k=acos(y)/(0.5*PI)/sn; p=vec2(d.x,d.z)*k; }
+    else { p=vec2(wrapPi(atan(d.x,-d.z)-uAz[i]), asin(clamp(d.y,-1.,1.))); }
+    vec3 q=uH[i]*vec3(p,1.);
+    ok*=step(1e-9,q.z);
+    uv=q.xy/max(q.z,1e-9);
+  }
+  vec2 fw=fwidth(uv);
+  // Randweiche: je Achse glatt (kein Diamant/Pyramiden-Effekt), in der kürzeren Bildseite gemessen
+  float asp=max(uAsp[i],1e-3);
+  vec2 sc=asp>=1. ? vec2(1./asp,1.) : vec2(1.,asp);
+  vec4 fv=uFeath[i];                                   // links, rechts, oben, unten
+  float eL=max(max(fv.x*sc.x,fw.x),1e-5), eR=max(max(fv.y*sc.x,fw.x),1e-5);
+  float eT=max(max(fv.z*sc.y,fw.y),1e-5), eB=max(max(fv.w*sc.y,fw.y),1e-5);
+  float a=pow(max(smoothstep(0.,eL,uv.x)*smoothstep(0.,eR,1.-uv.x)*smoothstep(0.,eT,1.-uv.y)*smoothstep(0.,eB,uv.y),0.),uFGam[i])*ok;
+  vec2 t=uv;
+  if(uFlip[i].x>0.5) t.x=1.-t.x;
+  if(uFlip[i].y>0.5) t.y=1.-t.y;
+  float ins=uExt[i]>0 ? uInset[i] : 0.;     // Rand-Einzug: schwarze Randlinien der Quelle ignorieren
+  t=clamp(t,vec2(ins),vec2(1.-ins));
+  vec4 cr=uCrop[i];
+  vec2 st=vec2(mix(cr.x,cr.z,t.x), mix(1.-cr.w,1.-cr.y,t.y));
+  vec3 c=texture(tex,st).rgb;
+  if(uExt[i]==1){ a=1.; }                          // Rand-Pixel strecken: füllt die ganze Kuppel
+  else if(uExt[i]==2){ c=mix(uFill[i],c,a); a=1.; } // Randfarbe füllen (Randweiche = weicher Übergang)
+  return vec4(c, a*uOpacity[i]);
+}
+vec3 blendL(vec3 acc, vec4 L, int mode){
+  if(mode==1) return acc+L.rgb*L.a;                       // Add
+  if(mode==2) return 1.-(1.-acc)*(1.-L.rgb*L.a);          // Screen
+  if(mode==3) return max(acc-L.rgb*L.a,0.);               // Subtract
+  if(mode==4) return mix(acc,acc*L.rgb,L.a);              // Multiply
+  return mix(acc,L.rgb,L.a);                              // Over
+}
+vec2 gridLines(vec3 d){
+  float azr=atan(d.x,-d.z), elr=asin(clamp(d.y,-1.,1.));
+  float az=azr*180./PI, el=elr*180./PI, ce=max(cos(elr),0.);
+  float ga=abs(fract(az/30.+.5)-.5)*30.*ce;
+  float ge=abs(fract(el/15.+.5)-.5)*15.;
+  float gf=abs(az)*ce;
+  float la=1.-smoothstep(0.,max(fwidth(ga),1e-4)*1.5,ga);
+  la*=smoothstep(.12,.4,ce);
+  float le=1.-smoothstep(0.,max(fwidth(ge),1e-4)*1.5,ge);
+  float lf=1.-smoothstep(0.,max(fwidth(gf),1e-4)*1.5,gf);
+  lf*=smoothstep(.05,.3,ce);
+  return vec2(max(la,le), lf);
+}
+void main(){
+  vec2 ndc=gl_FragCoord.xy/uRes*2.-1.;
+  ndc.y*=uFlipY;
+  float asp=uRes.x/uRes.y;
+  vec3 d=vec3(0.,1.,0.);
+  float useDome=0., useFloor=0., useWall=0., mask=1., shell=0., ring=0.;
+  vec3 Pg=vec3(0.);
+  if(uView==2){
+    vec2 p=ndc*vec2(asp,1.)/uMS;
+    float r=length(p);
+    mask=step(r,1.);
+    ring=smoothstep(.012,0.,abs(r-1.))*uRingK;
+    r=min(r,1.);
+    float th=r*.5*PI, az=atan(p.x,p.y);
+    d=vec3(sin(th)*sin(az),cos(th),sin(th)*cos(az));
+    useDome=1.;
+  } else {
+    vec2 q=ndc*vec2(asp,1.);
+    vec3 rd;
+    if(uLens==0 || uView==1){ rd=normalize(uFwd+uRight*(q.x*uTanH)+uUp*(q.y*uTanH)); }
+    else { float r=length(q); float ang=r*uFishH; mask=step(r,1.); vec2 dir=q/max(r,1e-6); rd=uFwd*cos(ang)+(uRight*dir.x+uUp*dir.y)*sin(ang); }
+    float b=dot(uEye,rd), cc=dot(uEye,uEye)-1., disc=b*b-cc;
+    float sq=sqrt(max(disc,0.));
+    float t1=-b-sq, t2=-b+sq;
+    float hasS=step(0.,disc);
+    vec3 Pf=uEye+rd*t2;
+    float domeOk=hasS*step(0.,t2)*step(-0.0005,Pf.y);
+    // Rundwand zwischen Boden und Kuppelrand (Zylinder, Radius 1)
+    float ca=dot(rd.xz,rd.xz), cb=dot(uEye.xz,rd.xz), cc2=dot(uEye.xz,uEye.xz)-1.;
+    float cd=cb*cb-ca*cc2;
+    float tc=(-cb+sqrt(max(cd,0.)))/max(ca,1e-6);
+    vec3 Pw=uEye+rd*tc;
+    float wallOk=step(0.,cd)*step(0.,tc)*step(Pw.y,0.0005)*step(uFloorY,Pw.y)*(1.-domeOk);
+    float tf=rd.y<-1e-5 ? (uFloorY-uEye.y)/rd.y : -1.;
+    Pg=uEye+rd*tf;
+    float floorOk=step(0.,tf)*step(length(Pg.xz),1.);
+    float tOther=mix(tc,t2,domeOk);
+    float hasOther=max(domeOk,wallOk);
+    useFloor=floorOk*(1.-hasOther*step(tOther,tf));
+    useDome=domeOk*(1.-useFloor);
+    useWall=wallOk*(1.-useFloor);
+    if(useDome>.5) d=normalize(Pf);
+    if(uView==1){ vec3 Pn=uEye+rd*t1; shell=hasS*step(0.,t1)*step(0.,Pn.y); }
+  }
+  vec4 l0=layerCol(0,uTex0,d), l1=layerCol(1,uTex1,d);
+  vec3 acc=blendL(blendL(vec3(0.),l0,uBlend[0]),l1,uBlend[1]);
+  vec2 g=gridLines(d);
+  vec3 dome=vec3(uBase)+acc*(1.-uBase);
+  dome=mix(dome,vec3(.72,.82,1.),g.x*uGrid);
+  dome=mix(dome,vec3(1.,.55,.2),g.y*uGrid);
+  if(uView!=2) dome+=vec3(.35,.38,.45)*(1.-smoothstep(0.,.012,d.y));
+  dome+=vec3(.4)*ring;
+  // Boden
+  float rr=length(Pg.xz);
+  vec3 fl=vec3(.018,.019,.024)+vec3(.05)*(1.-smoothstep(0.,.012,abs(rr-1.)));
+  fl+=vec3(.012)*(1.-smoothstep(0.,.01,abs(fract(rr*5.)-.5)-.49));
+  float sd=length(Pg.xz-uSeat.xz);
+  fl=mix(fl,vec3(1.,.8,.2),1.-smoothstep(.018,.026,sd));
+  vec3 col=vec3(.022,.024,.03);
+  col=mix(col,fl,useFloor);
+  col=mix(col,dome,useDome);
+  col=mix(col,vec3(uBase*.55+.014),useWall);
+  col+=shell*vec3(.5,.62,.85)*.045;
+  col=mix(vec3(uOutBg),col,mask);
+  outc=vec4(uBGR>.5?col.bgr:col,1.);
+}`;
+
+/* ───────────── WebGL ───────────── */
+const glc = document.getElementById('gl'), ov = document.getElementById('ov'), octx = ov.getContext('2d');
+let gl = glc.getContext('webgl2', { antialias: false });
+let U = {}, prog;
+const FSS = FS
+  .replace('uniform sampler2D uTex0, uTex1;', 'uniform sampler2D ' + Array.from({ length: MAXL }, (_, i) => 'uTex' + i).join(', ') + ';')
+  .replace(/\[2\]/g, '[' + MAXL + ']')
+  .replace(/  vec4 l0=layerCol\(0,uTex0,d\), l1=layerCol\(1,uTex1,d\);\n  vec3 acc=blendL\(blendL\(vec3\(0\.\),l0,uBlend\[0\]\),l1,uBlend\[1\]\);/,
+    '  vec3 acc=vec3(0.);\n' + Array.from({ length: MAXL }, (_, i) => `  acc=blendL(acc,layerCol(${i},uTex${i},d),uBlend[${i}]);`).join('\n'));
+// Erzeugt Programm + Texturen für einen WebGL2-Kontext (Hauptfenster oder Domemaster-Fenster)
+function makeGLContext(canvas) {
+  const g = canvas.getContext('webgl2', { antialias: false });
+  if (!g) return null;
+  const mk = (t, src) => { const sh = g.createShader(t); g.shaderSource(sh, src); g.compileShader(sh); if (!g.getShaderParameter(sh, g.COMPILE_STATUS)) throw new Error(g.getShaderInfoLog(sh)); return sh; };
+  const p = g.createProgram();
+  g.attachShader(p, mk(g.VERTEX_SHADER, VS));
+  g.attachShader(p, mk(g.FRAGMENT_SHADER, FSS));
+  g.linkProgram(p);
+  if (!g.getProgramParameter(p, g.LINK_STATUS)) throw new Error(g.getProgramInfoLog(p));
+  g.useProgram(p);
+  const names = ['uRes','uView','uEye','uRight','uUp','uFwd','uSeat','uTanH','uFishH','uLens','uBase','uGrid','uMS','uOutBg','uRingK','uFlipY','uBGR','uFloorY', ...Array.from({ length: MAXL }, (_, i) => 'uTex' + i),
+    'uOn[0]','uOpacity[0]','uFeather[0]','uAz[0]','uMode[0]','uBlend[0]','uC[0]','uR[0]','uU[0]','uH[0]','uCrop[0]','uPan[0]','uFlip[0]','uExt[0]','uFill[0]','uAsp[0]','uInset[0]','uFeath[0]','uFGam[0]'];
+  const u = {};
+  names.forEach(n => u[n.replace('[0]', '')] = g.getUniformLocation(p, n));
+  for (let k = 0; k < MAXL; k++) g.uniform1i(u['uTex' + k], k);
+  const tex = [];
+  for (let i = 0; i < MAXL; i++) {
+    const t = g.createTexture();
+    g.activeTexture(g.TEXTURE0 + i);
+    g.bindTexture(g.TEXTURE_2D, t);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, 1, 1, 0, g.RGBA, g.UNSIGNED_BYTE, new Uint8Array([20, 20, 24, 255]));
+    tex.push(t);
+  }
+  const dummy = g.createTexture();
+  g.activeTexture(g.TEXTURE0 + MAXL + 1);
+  g.bindTexture(g.TEXTURE_2D, dummy);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
+  g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, 1, 1, 0, g.RGBA, g.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+  g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, true);
+  return { gl: g, U: u, prog: p, tex, dummy, lastBitmap: new Array(MAXL).fill(null) };
+}
+let mainCtx = null;
+// schaltet die globalen gl/U/Texturen auf einen Kontext um (die Render-Funktionen sind kontext-agnostisch)
+function useCtx(c) {
+  gl = c.gl; U = c.U; prog = c.prog; dummyTex = c.dummy;
+  slots.forEach((s, i) => { s.tex = c.tex[i]; });
+}
+
+/* ───────────── Quellen ───────────── */
+const slots = Array.from({ length: MAXL }, (_, i) => {
+  const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 720;
+  const video = document.createElement('video');
+  video.muted = true; video.playsInline = true; video.loop = true; video.autoplay = true;
+  video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  document.body.appendChild(video);
+  const s = { i, type: 'test', canvas, ctx: canvas.getContext('2d'), video, stream: null, url: null, w: 1280, h: 720, status: T('Testbild'),
+              tex: null, label: LABELS[i], color: COLORS[i],
+              bitmap: null, pending: null, dirty: false, origW: 0, origH: 0, subUUID: '', fill: [0, 0, 0] };
+  const upd = () => { if (s.type !== 'test' && video.videoWidth) { s.w = video.videoWidth; s.h = video.videoHeight; s.status = `${s.name || s.type} · ${s.w}×${s.h}`; refreshStatus(); } };
+  video.addEventListener('loadedmetadata', upd); video.addEventListener('resize', upd);
+  return s;
+});
+let dummyTex = null;
+function stopSlot(s) {
+  if (s.type === 'syphon') bridgeSend({ cmd: 'unsubscribe', slot: s.i });
+  s.img = null; s.kind = null;
+  if (s.bitmap) { s.bitmap.close(); s.bitmap = null; }
+  if (s.pending) { s.pending.close(); s.pending = null; }
+  s.subUUID = ''; s.origW = 0; s.origH = 0;
+  if (s.stream) { s.stream.getTracks().forEach(t => { t.onended = null; t.stop(); }); s.stream = null; }
+  s.video.pause(); s.video.srcObject = null;
+  if (s.url) { URL.revokeObjectURL(s.url); s.url = null; }
+  s.video.removeAttribute('src');
+}
+function useTest(i, status) {
+  const s = slots[i]; stopSlot(s);
+  s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status || 'Testbild');
+  state.layers[i].srcType = 'test';
+}
+// Testbild als Platzhalter, die gewählte Quellenart bleibt stehen (z. B. „Fenster / Bildschirm“), damit man neu verbinden kann
+function placeholder(i, status) {
+  const s = slots[i]; stopSlot(s);
+  s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status);
+}
+function attachStream(i, stream, type, name) {
+  const s = slots[i]; stopSlot(s);
+  s.type = type; s.name = name; s.stream = stream; s.status = name;
+  state.layers[i].srcType = type;
+  s.video.srcObject = stream;
+  s.video.play().catch(() => {});
+  stream.getVideoTracks().forEach(t => t.onended = () => { placeholder(i, 'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten'); syncUI(); });
+}
+async function connectCamera(i) {
+  const L = state.layers[i];
+  try {
+    const v = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+    if (L.deviceId) v.deviceId = { exact: L.deviceId };
+    const stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
+    const tr = stream.getVideoTracks()[0];
+    L.deviceId = tr.getSettings().deviceId || L.deviceId;
+    attachStream(i, stream, 'camera', tr.label || 'Kamera');
+    await refreshDevices();
+  } catch (e) { placeholder(i, Tf('Kamera-Fehler: {0}', e.name + (e.message ? ' – ' + e.message : ''))); }
+  syncUI(); save();
+}
+async function connectScreen(i) {
+  const md = navigator.mediaDevices;
+  if (!md || !md.getDisplayMedia) {
+    placeholder(i, 'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.');
+    syncUI(); return;
+  }
+  try {
+    const stream = await md.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: false });
+    attachStream(i, stream, 'screen', stream.getVideoTracks()[0].label || 'Bildschirm');
+  } catch (e) {
+    const hint = /user gesture|user activation/i.test(e.message)
+      ? T(' – der Browser verlangt einen direkten Klick auf den Button')
+      : e.name === 'NotAllowedError'
+      ? T(' – Auswahl abgebrochen oder Bildschirmaufnahme nicht erlaubt (macOS: Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → Browser aktivieren, danach Browser neu starten)')
+      : '';
+    placeholder(i, Tf('Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.', e.name, hint));
+  }
+  syncUI(); save();
+}
+function connectFile(i, file) {
+  if (!file) return;
+  const s = slots[i]; stopSlot(s);
+  s.name = file.name; s.status = file.name; s.url = URL.createObjectURL(file);
+  state.layers[i].srcType = 'file';
+  const isImage = (file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif|svg|tiff?)$/i.test(file.name);
+  if (isImage) {            // Foto/Grafik: einmal als Textur hochladen
+    s.type = 'image'; s.kind = 'image';
+    const img = new Image();
+    img.onload = () => { s.img = img; s.w = img.naturalWidth; s.h = img.naturalHeight; s.dirty = true; s.status = `${file.name} · ${s.w}×${s.h}`; refreshStatus(); syncUI(); };
+    img.onerror = () => { placeholder(i, Tf('Bild konnte nicht geladen werden: {0}', file.name)); syncUI(); };
+    img.src = s.url;
+  } else {                  // Video: loopt automatisch, Transport über Play/Pause und Zeitleiste
+    s.type = 'file'; s.kind = 'video';
+    s.video.src = s.url; s.video.loop = true; s.video.play().catch(() => {});
+  }
+  syncUI();
+}
+/* ───── Syphon-Brücke (WebSocket zu ./bridge/syphon-bridge) ───── */
+const bridge = { ws: null, ok: false, servers: [], out: { master: false, view: false }, statusEl: null, outEl: null };
+const OUT_ID = { master: 0, view: 1 };
+function bridgeURL() { return location.protocol === 'http:' && location.port === '8766' ? `ws://${location.host}/ws` : 'ws://localhost:8766/ws'; }
+function bridgeSend(o) { if (bridge.ws && bridge.ws.readyState === 1) bridge.ws.send(JSON.stringify(o)); }
+function bridgeStatus() {
+  if (bridge.statusEl) bridge.statusEl.textContent = bridge.ok
+    ? Tf('Brücke verbunden · {0} Syphon-Server gefunden', bridge.servers.length)
+    : T(IS_MAC ? 'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)'
+               : 'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.');
+  if (bridge.outEl) {
+    const act = ['master', 'view'].filter(k => bridge.out[k]).map(k => '„' + state.out[k].name + '“');
+    bridge.outEl.textContent = act.length ? Tf('Läuft als Syphon-Server: {0}', act.join(', ')) : T('Ausgabe aus');
+  }
+  syncUI();
+}
+function serverLabel(sv) { return (sv.app ? sv.app + ' – ' : '') + (sv.name || '(ohne Namen)'); }
+function findServer(L) {
+  return bridge.servers.find(v => v.uuid === L.syphonUUID) ||
+         bridge.servers.find(v => L.syphonName && v.name === L.syphonName && v.app === L.syphonApp) || null;
+}
+function ensureSub(i, force) {
+  const L = state.layers[i], s = slots[i];
+  if (s.type !== 'syphon' || !bridge.ok) return;
+  const sv = findServer(L);
+  if (!sv) { s.subUUID = ''; s.status = L.syphonName ? Tf('Server „{0}“ nicht gefunden', L.syphonName) : T('Server wählen …'); refreshStatus(); return; }
+  if (force || s.subUUID !== sv.uuid) {
+    L.syphonUUID = sv.uuid; L.syphonApp = sv.app; L.syphonName = sv.name;
+    s.subUUID = sv.uuid; s.status = Tf('{0} · verbinde …', serverLabel(sv));
+    bridgeSend({ cmd: 'subscribe', slot: i, uuid: sv.uuid, maxWidth: L.syphonRes, fps: 30 });
+    refreshStatus();
+  }
+}
+function connectSyphon(i) {
+  const s = slots[i], L = state.layers[i];
+  stopSlot(s);
+  s.type = 'syphon'; s.name = 'Syphon'; s.w = 1280; s.h = 720;
+  s.status = T(bridge.ok ? 'Server wählen …' : 'Brücke nicht verbunden');
+  L.srcType = 'syphon';
+  if (bridge.ok) { bridgeSend({ cmd: 'list' }); ensureSub(i, true); }
+  syncUI(); save();
+}
+function renderServers() {
+  serverSels.forEach((sel, i) => {
+    const L = state.layers[i];
+    sel.textContent = '';
+    const o0 = h('option', null, bridge.ok ? '— Server wählen —' : '— Brücke nicht verbunden —'); o0.value = ''; sel.append(o0);
+    bridge.servers.forEach(v => { const o = h('option', null, serverLabel(v)); o.value = v.uuid; sel.append(o); });
+    const f = findServer(L); sel.value = f ? f.uuid : '';
+  });
+}
+function outStartMsg(k) { bridgeSend({ cmd: 'out_start', id: OUT_ID[k], name: state.out[k].name }); }
+function bridgeConnect() {
+  if (bridge.ws && bridge.ws.readyState < 2) return;
+  let ws;
+  try { ws = new WebSocket(bridgeURL()); } catch (e) { setTimeout(bridgeConnect, 3000); return; }
+  ws.binaryType = 'arraybuffer'; bridge.ws = ws;
+  ws.onopen = () => {
+    bridge.ok = true; bridgeStatus();
+    bridgeSend({ cmd: 'list' });
+    ['master', 'view'].forEach(k => { if (state.out[k].on) outStartMsg(k); });
+  };
+  ws.onclose = () => { bridge.ok = false; bridge.out.master = bridge.out.view = false; bridge.servers = []; slots.forEach(s => { s.subUUID = ''; }); renderServers(); bridgeStatus(); setTimeout(bridgeConnect, 2000); };
+  ws.onerror = () => {};
+  ws.onmessage = ev => {
+    if (typeof ev.data !== 'string') {
+      const u8 = new Uint8Array(ev.data), s = slots[u8[0]];
+      if (!s || s.type !== 'syphon') return;
+      createImageBitmap(new Blob([u8.subarray(1)], { type: 'image/jpeg' }), { imageOrientation: 'flipY' }).then(bm => {
+        if (s.type !== 'syphon') { bm.close(); return; }
+        if (s.pending) s.pending.close();
+        s.pending = bm;
+        if (!s.origW) { s.w = bm.width; s.h = bm.height; }
+      }).catch(() => {});
+      return;
+    }
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type === 'servers') {
+      bridge.servers = m.servers || [];
+      slots.forEach((s, i) => { if (s.type === 'syphon') ensureSub(i, false); });
+      renderServers(); bridgeStatus();
+    } else if (m.type === 'info') {
+      const s = slots[m.slot]; if (!s) return;
+      s.origW = m.w; s.origH = m.h; s.w = m.w; s.h = m.h;
+      const L = state.layers[m.slot];
+      s.status = `${L.syphonApp ? L.syphonApp + ' – ' : ''}${L.syphonName || 'Syphon'} · ${m.w}×${m.h}`;
+      syncUI();
+    } else if (m.type === 'out') { bridge.out[m.id === 1 ? 'view' : 'master'] = !!m.active; bridgeStatus(); }
+    else if (m.type === 'error') {
+      const msg = Tf('Fehler: {0}', T(BRIDGE_ERR[m.code] || m.message));
+      if (m.slot != null && slots[m.slot]) { slots[m.slot].status = msg; refreshStatus(); }
+      else if (bridge.outEl) bridge.outEl.textContent = msg;
+    }
+  };
+}
+let devices = [];
+async function refreshDevices() {
+  try { devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch (e) { devices = []; }
+  renderDevices();
+}
+function drawTest(s, t) {
+  const kind = state.layers[s.i].testKind, dims = [[1280, 720], [2048, 1024], [1024, 1024]][kind] || [1280, 720];
+  if (s.canvas.width !== dims[0] || s.canvas.height !== dims[1]) { s.canvas.width = dims[0]; s.canvas.height = dims[1]; }
+  s.w = dims[0]; s.h = dims[1];
+  const c = s.ctx, w = s.canvas.width, hh = s.canvas.height;
+  c.textBaseline = 'middle';
+  const font = (px, wgt = 'bold') => c.font = `${wgt} ${px}px -apple-system, Helvetica, Arial`;
+  if (kind === 1) {                       // Equirect 360×180: Mitte = vorne, oben = Zenit
+    c.fillStyle = '#16181e'; c.fillRect(0, 0, w, hh);
+    c.lineWidth = 1; font(18, '600'); c.textAlign = 'center';
+    for (let a = -180; a <= 180; a += 15) {
+      const x = (a + 180) / 360 * w, major = a % 30 === 0;
+      c.strokeStyle = major ? '#3b4250' : '#262b35'; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, hh); c.stroke();
+      if (major && a > -180 && a < 180) { c.fillStyle = '#8a91a0'; c.fillText(a + '°', x, hh / 2 + 16); }
+    }
+    for (let e = -90; e <= 90; e += 15) {
+      const y = (90 - e) / 180 * hh;
+      c.strokeStyle = e === 0 ? '#9aa3b5' : '#3b4250'; c.lineWidth = e === 0 ? 3 : 1;
+      c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();
+      if (e !== 0 && e % 30 === 0) { c.fillStyle = '#8a91a0'; c.textAlign = 'left'; c.fillText(e + '°', 8, y - 10); c.textAlign = 'center'; }
+    }
+    c.strokeStyle = s.color; c.lineWidth = 8; c.strokeRect(4, 4, w - 8, hh - 8);
+    c.fillStyle = s.color; font(46); c.fillText(T('VORNE (Azimut 0°) – Horizont = Mittellinie'), w / 2, hh / 2 - 36);
+    font(250); c.fillText(s.label, w / 2, hh * 0.27);
+    font(30); c.fillStyle = '#e7e9ee'; c.fillText(T('ZENIT ↑ (oberer Rand)'), w / 4, 30);
+    c.fillText(T('HINTEN (±180°)'), 120, hh / 2 - 36); c.fillText(T('HINTEN (±180°)'), w - 120, hh / 2 - 36);
+    const x = ((t * 0.08) % 1) * w; c.globalAlpha = 0.8; c.fillStyle = s.color; c.fillRect(x - 6, 0, 12, hh); c.globalAlpha = 1;
+    return;
+  }
+  if (kind === 2) {                       // Domemaster (IMERSA): Zenit = Mitte, Rand = Horizont, VORNE = UNTEN, rechts = Publikum rechts
+    const cx = w / 2, cy = hh / 2, R = w / 2 - 2;
+    c.fillStyle = '#050608'; c.fillRect(0, 0, w, hh);
+    c.fillStyle = '#16181e'; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill();
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    // Beschriftung radial: Oberkante der Schrift zeigt zum Zenit (Bildmitte) = „oben“ für Zuschauer, die dorthin schauen
+    const radial = (txt, azDeg, r, px, color, wgt) => {
+      const a = azDeg * D2R;
+      c.save(); c.translate(cx + Math.sin(a) * r, cy + Math.cos(a) * r); c.rotate(-a);
+      c.fillStyle = color; font(px, wgt || 'bold'); c.fillText(txt, 0, 0); c.restore();
+    };
+    // Höhenringe alle 15° (Beschriftung = Elevation), entlang der Front-Achse neben dem farbigen Strahl
+    for (let z = 15; z < 90; z += 15) {
+      const r = z / 90 * R;
+      c.strokeStyle = z === 45 ? '#4a5160' : '#2d323d'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.stroke();
+      radial(`${90 - z}°`, 0, r - 9, 17, '#9aa3b5', '600');
+    }
+    // Azimut-Strahlen alle 30°: 0° = vorne = unten, +90° = rechts
+    for (let a = 0; a < 360; a += 30) {
+      const sx = Math.sin(a * D2R), sy = Math.cos(a * D2R);
+      c.strokeStyle = a === 0 ? s.color : (a === 180 ? '#7d8596' : '#2d323d'); c.lineWidth = a === 0 ? 4 : 1.5;
+      c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + sx * R, cy + sy * R); c.stroke();
+      if (a && a !== 180) radial(`${a > 180 ? a - 360 : a}°`, a, R - 30, 17, '#9aa3b5', '600');
+    }
+    // sichere Zone (90 %) und Horizont-Rand
+    c.setLineDash([14, 10]); c.strokeStyle = '#cfd5e2'; c.lineWidth = 2;
+    c.beginPath(); c.arc(cx, cy, R * 0.9, 0, TAU); c.stroke(); c.setLineDash([]);
+    c.strokeStyle = s.color; c.lineWidth = 8; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
+    // Himmelsrichtungen (aus Sicht des Publikums, Blick nach vorne = Azimut 0°)
+    radial(T('VORNE'), 0, R - 62, 30, s.color);
+    radial(T('RECHTS'), 90, R - 62, 24, '#e7e9ee');
+    radial(T('HINTEN'), 180, R - 62, 24, '#e7e9ee');
+    radial(T('LINKS'), 270, R - 62, 24, '#e7e9ee');
+    radial(T('Rand = Horizont 0°'), 180, R - 100, 18, '#9aa3b5', '600');
+    // Zenit
+    c.fillStyle = s.color; font(170); c.fillText(s.label, cx, cy - 8);
+    font(18, '600'); c.fillStyle = '#9aa3b5'; c.fillText(T('Zenit 90°'), cx, cy + 104);
+    // rotierender Zeiger startet vorne (unten) und läuft nach rechts
+    const a = t * 0.6; c.strokeStyle = s.color; c.globalAlpha = 0.8; c.lineWidth = 10;
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * R, cy + Math.cos(a) * R); c.stroke(); c.globalAlpha = 1;
+    return;
+  }
+  c.fillStyle = '#16181e'; c.fillRect(0, 0, w, hh);
+  c.strokeStyle = '#2d323d'; c.lineWidth = 1;
+  for (let i = 1; i < 16; i++) { c.beginPath(); c.moveTo(i * w / 16, 0); c.lineTo(i * w / 16, hh); c.stroke(); }
+  for (let i = 1; i < 9; i++) { c.beginPath(); c.moveTo(0, i * hh / 9); c.lineTo(w, i * hh / 9); c.stroke(); }
+  c.strokeStyle = '#4a5160'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(w / 2, 0); c.lineTo(w / 2, hh); c.moveTo(0, hh / 2); c.lineTo(w, hh / 2); c.stroke();
+  c.strokeStyle = s.color; c.lineWidth = 3;
+  c.beginPath(); c.arc(w / 2, hh / 2, hh * 0.42, 0, TAU); c.stroke();
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(w, hh); c.moveTo(w, 0); c.lineTo(0, hh); c.stroke();
+  c.lineWidth = 14; c.strokeRect(7, 7, w - 14, hh - 14);
+  c.fillStyle = s.color; font(300); c.textAlign = 'center'; c.fillText(s.label, w / 2, hh / 2 + 10);
+  font(40); c.fillStyle = '#e7e9ee';
+  c.textAlign = 'left'; c.fillText(T('↖ OBEN LINKS'), 34, 52);
+  c.textAlign = 'right'; c.fillText(T('OBEN RECHTS ↗'), w - 34, 52);
+  c.textAlign = 'left'; c.fillText(T('UNTEN LINKS'), 34, hh - 50);
+  c.textAlign = 'right'; c.fillText(T('UNTEN RECHTS'), w - 34, hh - 50);
+  const x = ((t * 0.12) % 1) * w;
+  c.fillStyle = s.color; c.globalAlpha = 0.85; c.fillRect(x - 10, 0, 20, hh); c.globalAlpha = 1;
+}
+
+/* ───────────── UI ───────────── */
+const panelL = document.getElementById('panelL'), panelR = document.getElementById('panelR');
+// Oberflächen-Layout (offen/zu) – bewusst getrennt vom Preset
+const PREF_KEY = 'hopedomesim.ui';
+const uiPrefs = (() => { const d = { left: true, right: true, closed: {} }; try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { return d; } })();
+function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(uiPrefs)); } catch (e) {} }
+function isClosed(key, dflt) { return key in uiPrefs.closed ? !!uiPrefs.closed[key] : !!dflt; }
+function mkSection(parent, title, opts = {}) {
+  const key = opts.key || title, sec = h('section', 'sec' + (opts.sub ? ' sub' : ''));
+  const head = h('button', 'sechead'); head.type = 'button';
+  head.innerHTML = '<span class="chev"></span>'; head.append(h('span', null, title));
+  const body = h('div', 'secbody');
+  const apply = () => sec.classList.toggle('closed', isClosed(key, opts.collapsed));
+  head.addEventListener('click', () => { uiPrefs.closed[key] = !isClosed(key, opts.collapsed); apply(); savePrefs(); });
+  apply(); sec.append(head, body); parent.append(sec);
+  return body;
+}
+// h4-Überschriften eines Containers in einklappbare Gruppen umwandeln
+function groupify(container, collapsedTitles = []) {
+  const kids = [...container.children];
+  let body = null;
+  kids.forEach(k => {
+    if (k.tagName === 'H4') { body = mkSection(container, k.textContent, { sub: true, collapsed: collapsedTitles.includes(k.textContent) }); k.remove(); }
+    else if (body) body.append(k);
+  });
+}
+const ICON = (() => {
+  const svg = d => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const eye = '<path d="M1.6 8s2.3-4.4 6.4-4.4S14.4 8 14.4 8s-2.3 4.4-6.4 4.4S1.6 8 1.6 8z"/><circle cx="8" cy="8" r="1.7"/>';
+  return {
+    eye: svg(eye),
+    eyeOff: svg(eye + '<path d="M2.5 13.5 13.5 2.5"/>'),
+    lock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.8 0v1.8"/>'),
+    unlock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.6-.9"/>'),
+    up: svg('<path d="M4 9.8 8 5.8l4 4"/>'),
+    down: svg('<path d="M4 6.2l4 4 4-4"/>'),
+    x: svg('<path d="M4.4 4.4l7.2 7.2M11.6 4.4l-7.2 7.2"/>'),
+    play: svg('<path d="M5 3.6v8.8l7-4.4z" fill="currentColor"/>'),
+    pause: svg('<path d="M5.2 3.5v9M10.8 3.5v9" stroke-width="2"/>'),
+    grip: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="6" cy="4" r="1.2"/><circle cx="10" cy="4" r="1.2"/><circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="6" cy="12" r="1.2"/><circle cx="10" cy="12" r="1.2"/></svg>',
+  };
+})();
+const syncs = [];
+function syncUI() { syncs.forEach(f => f()); refreshStatus(); }
+function mkSlider(parent, label, obj, key, min, max, step, opt = {}) {
+  const row = h('div', 'row'), lab = h('label', null, label), inp = h('input'), out = h('span', 'val');
+  inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step;
+  const upd = () => { inp.value = obj[key]; out.textContent = opt.fmt ? opt.fmt(obj[key]) : (Math.round(obj[key] * 100) / 100); if (opt.disabled) inp.disabled = opt.disabled(); };
+  inp.addEventListener('input', () => { obj[key] = parseFloat(inp.value); if (opt.onInput) opt.onInput(); syncUI(); save(); });
+  syncs.push(upd); upd();
+  row.append(lab, inp, out); parent.append(row);
+  return { inp, upd };
+}
+function mkSelect(parent, label, obj, key, options, onChange) {
+  const row = h('div', 'row two'), lab = h('label', null, label), sel = h('select');
+  options.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; sel.append(o); });
+  const num = typeof obj[key] === 'number';
+  sel.addEventListener('change', () => { obj[key] = num ? Number(sel.value) : sel.value; if (onChange) onChange(); syncUI(); save(); });
+  syncs.push(() => { sel.value = obj[key]; });
+  sel.value = obj[key];
+  row.append(lab, sel); parent.append(row);
+  return { sel, row };
+}
+function mkCheck(parent, label, obj, key, onChange) {
+  const row = h('label', 'chk'), c = h('input');
+  c.type = 'checkbox';
+  c.addEventListener('change', () => { obj[key] = c.checked; if (onChange) onChange(); syncUI(); save(); });
+  syncs.push(() => { c.checked = !!obj[key]; });
+  c.checked = !!obj[key];
+  row.append(c, document.createTextNode(T(label))); parent.append(row);
+}
+function mkBtns(parent, list) {
+  const w = h('div', 'btns');
+  list.forEach(([t, fn]) => { const b = h('button', 'btn', t); b.addEventListener('click', fn); w.append(b); });
+  parent.append(w); return w;
+}
+const statusEls = [], deviceSels = [], serverSels = [], cards = [], transports = [];
+setInterval(() => transports.forEach(f => f()), 200);
+function refreshStatus() { statusEls.forEach((el, i) => { el.textContent = slots[i].status; }); }
+function renderDevices() {
+  deviceSels.forEach((sel, i) => {
+    const cur = state.layers[i].deviceId;
+    sel.textContent = '';
+    const o0 = h('option', null, devices.length ? 'Standardkamera' : '— zuerst „Geräte laden“ —'); o0.value = ''; sel.append(o0);
+    devices.forEach((d, n) => { const o = h('option', null, d.label || Tf('Kamera {0}', n + 1)); o.value = d.deviceId; sel.append(o); });
+    sel.value = cur;
+  });
+}
+function selectLayer(i) {
+  state.sel = i;
+  cards.forEach((c, n) => c.classList.toggle('on', n === i && state.layers[n].used));
+  updateLayerList();
+}
+function moveLayer(id, dir) {
+  const o = state.order, k = o.indexOf(id), j = k + dir;
+  if (k < 0 || j < 0 || j >= o.length) return;
+  [o[k], o[j]] = [o[j], o[k]];
+  syncUI(); save();
+}
+function addLayer() {
+  const id = state.layers.findIndex(L => !L.used);
+  if (id < 0) return;
+  const L = state.layers[id];
+  deepAssign(L, defLayer(id));
+  L.used = true;
+  useTest(id);
+  state.order.push(id);
+  selectLayer(id); syncUI(); save();
+}
+function removeLayer(id) {
+  const L = state.layers[id];
+  if (L.locked) return;
+  useTest(id);
+  L.used = false;
+  const k = state.order.indexOf(id); if (k >= 0) state.order.splice(k, 1);
+  if (state.sel === id) selectLayer(state.order.length ? state.order[state.order.length - 1] : 0);
+  syncUI(); save();
+}
+const rows = [];
+let listEl = null, listSig = '', addBtn = null;
+// Drag & Drop: die ganze Zeile ist greifbar (außer Buttons/Regler/Auswahl). Erst ab 4 px Bewegung wird gezogen,
+// ein einfacher Klick wählt den Layer weiterhin aus.
+function startRowDrag(e, id, rowEl) {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (e.target.closest && e.target.closest('button, select, input')) return;
+  const startY = e.clientY;
+  let dragging = false, target = -1, ghost = null, grabDy = 0;
+  const rowsNow = () => [...listEl.children].filter(c => c !== rowEl);
+  const clear = () => rows.forEach(r => r.el.classList.remove('drop-above', 'drop-below'));
+  const move = ev => {
+    if (!dragging) {
+      if (Math.abs(ev.clientY - startY) < 4) return;
+      dragging = true; rowEl.classList.add('dragging'); document.body.classList.add('dnd');
+      // Geisterbild der Zeile hängt unter dem Mauszeiger
+      const rc = rowEl.getBoundingClientRect();
+      ghost = rowEl.cloneNode(true);
+      ghost.classList.remove('dragging', 'sel'); ghost.classList.add('ghost');
+      ghost.style.cssText = `width:${rc.width}px;left:${rc.left}px;top:${rc.top}px`;
+      rowEl.querySelectorAll('input[type=range], select').forEach((src, k) => { const g = ghost.querySelectorAll('input[type=range], select')[k]; if (g) g.value = src.value; });
+      document.body.append(ghost);
+      grabDy = startY - rc.top;
+    }
+    if (ghost) ghost.style.top = (ev.clientY - grabDy) + 'px';
+    ev.preventDefault();
+    const others = rowsNow();
+    let p = 0;
+    others.forEach(r => { const bb = r.getBoundingClientRect(); if (ev.clientY > bb.top + bb.height / 2) p++; });
+    target = p; clear();
+    if (others.length) { if (p < others.length) others[p].classList.add('drop-above'); else others[others.length - 1].classList.add('drop-below'); }
+  };
+  const end = ev => {
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    try { rowEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    rowEl.classList.remove('dragging'); document.body.classList.remove('dnd'); clear();
+    if (ghost) { ghost.remove(); ghost = null; }
+    if (!dragging || target < 0) return;
+    rowEl.dataset.justDragged = '1'; setTimeout(() => delete rowEl.dataset.justDragged, 0);   // folgenden Klick nicht als Auswahl werten
+    const ids = rowsNow().map(r => Number(r.dataset.id));   // Anzeige: oben = vorne
+    ids.splice(target, 0, id);
+    const next = ids.reverse();                              // state.order: unten → oben
+    if (next.join(',') !== state.order.join(',')) { state.order.length = 0; next.forEach(x => state.order.push(x)); syncUI(); save(); }
+  };
+  try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+}
+function buildLayerList(parent) {
+  listEl = h('div', 'llist'); parent.append(listEl);
+  for (let id = 0; id < MAXL; id++) {
+    const L = state.layers[id];
+    const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm');
+    el.dataset.id = id;
+    const grip = h('span', 'grip'); grip.innerHTML = ICON.grip; grip.title = T('Ziehen, um die Reihenfolge zu ändern');
+    el.addEventListener('pointerdown', e => startRowDrag(e, id, el));
+    dot.style.background = COLORS[id];
+    const btn = (html, title, fn) => { const b = h('button', 'ib'); b.innerHTML = html; b.title = T(title); b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; };
+    const eye = btn(ICON.eye, 'Sichtbar / ausgeblendet', () => { L.on = !L.on; syncUI(); save(); });
+    const lock = btn(ICON.unlock, 'Sperren / entsperren', () => { L.locked = !L.locked; syncUI(); save(); });
+    const up = btn(ICON.up, 'Nach oben (vor die anderen)', () => moveLayer(id, 1));
+    const dn = btn(ICON.down, 'Nach unten', () => moveLayer(id, -1));
+    const del = btn(ICON.x, 'Layer löschen', () => removeLayer(id));
+    top.append(grip, dot, nm, eye, lock, up, dn, del);
+    const bot = h('div', 'bot'), bsel = h('select'), rng = h('input'), val = h('span', 'v');
+    BLEND_OPTS.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; bsel.append(o); });
+    bsel.addEventListener('click', e => e.stopPropagation());
+    bsel.addEventListener('change', () => { L.blend = Number(bsel.value); syncUI(); save(); });
+    rng.type = 'range'; rng.min = 0; rng.max = 1; rng.step = 0.01;
+    rng.addEventListener('click', e => e.stopPropagation());
+    rng.addEventListener('input', () => { L.opacity = parseFloat(rng.value); syncUI(); save(); });
+    bot.append(bsel, rng, val);
+    el.append(top, bot);
+    el.addEventListener('click', () => { if (el.dataset.justDragged) return; selectLayer(id); });
+    rows[id] = { el, nm, eye, lock, up, dn, del, bsel, rng, val };
+  }
+  addBtn = h('button', 'btn', '+ Layer hinzufügen');
+  addBtn.style.marginTop = '4px';
+  addBtn.addEventListener('click', addLayer);
+  parent.append(addBtn);
+  syncs.push(updateLayerList);
+}
+function updateLayerList() {
+  if (!listEl) return;
+  const sig = state.order.join(',');
+  if (sig !== listSig) {
+    listSig = sig;
+    listEl.textContent = '';
+    [...state.order].reverse().forEach(id => listEl.append(rows[id].el));
+  }
+  const o = state.order;
+  rows.forEach((r, id) => {
+    const L = state.layers[id], k = o.indexOf(id);
+    r.nm.textContent = L.name || ('Layer ' + LABELS[id]);
+    r.el.classList.toggle('sel', id === state.sel);
+    r.el.classList.toggle('locked', !!L.locked);
+    const ei = L.on ? ICON.eye : ICON.eyeOff, li = L.locked ? ICON.lock : ICON.unlock;
+    if (r.eye._i !== ei) { r.eye.innerHTML = ei; r.eye._i = ei; }
+    if (r.lock._i !== li) { r.lock.innerHTML = li; r.lock._i = li; }
+    r.eye.classList.toggle('off', !L.on);
+    r.lock.classList.toggle('on', !!L.locked);
+    r.lock.classList.toggle('off', !L.locked);
+    r.up.disabled = k < 0 || k === o.length - 1;
+    r.dn.disabled = k <= 0;
+    r.del.disabled = !!L.locked;
+    if (document.activeElement !== r.bsel) r.bsel.value = L.blend;
+    if (document.activeElement !== r.rng) r.rng.value = L.opacity;
+    r.val.textContent = Math.round(L.opacity * 100) + '%';
+  });
+  if (addBtn) addBtn.disabled = !state.layers.some(L => !L.used);
+}
+function autoAspect(i) {
+  const L = state.layers[i], s = slots[i];
+  if (!L.autoAspect) return false;
+  const a = (s.w * (L.crop[2] - L.crop[0])) / (s.h * (L.crop[3] - L.crop[1]));
+  if (Number.isFinite(a) && a > 0.05 && Math.abs(a - L.aspect) > 1e-4) { L.aspect = a; return true; }
+  return false;
+}
+// sinnvolle Startwerte, wenn Mapping oder Testbild-Typ wechseln
+function applyDefaultsFor(L) {
+  const i = state.layers.indexOf(L);
+  if (L.srcType === 'test') { const k = L.testKind; if (L.mapping === 3 && k === 0) L.testKind = 1; if (L.mapping === 4 && k !== 2) L.testKind = 2; }
+  if (L.mapping === 3) { L.size = 360; L.el = 0; L.roll = 0; L.az = 0; L.autoAspect = true; }
+  else if (L.mapping === 4) { L.size = 180; L.az = 0; L.autoAspect = true; }
+  else if (L.size > 160) { L.size = 60; L.el = 40; }
+  L.ox.fill(0); L.oy.fill(0);
+  autoAspect(i);
+}
+function buildLayer(i) {
+  const L = state.layers[i];
+  const card = h('div', 'card');
+  const nameRow = h('div', 'row two'), nameIn = h('input'); nameIn.type = 'text';
+  nameIn.style.cssText = 'width:100%;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 7px;font:inherit';
+  nameIn.addEventListener('input', () => { L.name = nameIn.value; syncUI(); save(); });
+  syncs.push(() => { if (document.activeElement !== nameIn) nameIn.value = L.name; });
+  nameRow.append(h('label', null, 'Name'), nameIn); card.append(nameRow);
+  syncs.push(() => card.classList.toggle('locked', !!L.locked));
+  const body = h('div', 'lockable'); card.append(body);
+
+  body.append(h('h4', null, 'Quelle'));
+  const srcSel = mkSelect(body, 'Typ', L, 'srcType', [
+    ['test', 'Testbild'], ['syphon', 'Syphon (über Brücke)'], ['camera', 'Kamera / Virtual Cam'], ['screen', 'Fenster / Bildschirm'], ['file', 'Video- oder Bilddatei'],
+  ], () => {
+    if (L.srcType === 'test') useTest(i);
+    else if (L.srcType === 'syphon') connectSyphon(i);
+    else if (L.srcType === 'camera') connectCamera(i);
+    else if (L.srcType === 'screen') { placeholder(i, 'Bereit – unten auf „Fenster / Bildschirm wählen …“ klicken (der Browser verlangt dafür einen direkten Klick).'); }
+    else { useTest(i, 'Datei wählen …'); L.srcType = 'file'; }
+  });
+  const tk = mkSelect(body, 'Testbild', L, 'testKind', [[0, '16:9 Rechteck'], [1, '2:1 Panorama (Equirect)'], [2, '1:1 Domemaster (Fisheye)']], () => {
+    if (L.testKind) L.mapping = L.testKind === 1 ? 3 : 4; else if (L.mapping >= 3) L.mapping = 0;
+    applyDefaultsFor(L);
+  });
+  const syRow = h('div', 'row two'), sySel = h('select');
+  syRow.append(h('label', null, 'Syphon-Server'), sySel); body.append(syRow);
+  sySel.addEventListener('change', () => {
+    const sv = bridge.servers.find(v => v.uuid === sySel.value);
+    if (sv) { L.syphonUUID = sv.uuid; L.syphonApp = sv.app; L.syphonName = sv.name; ensureSub(i, true); save(); }
+  });
+  serverSels[i] = sySel;
+  const syRes = mkSelect(body, 'Übertragung', L, 'syphonRes', [[960, '960 px breit'], [1280, '1280 px breit'], [1920, '1920 px breit'], [2560, '2560 px breit'], [0, 'Original']], () => ensureSub(i, true));
+  const syBtn = mkBtns(body, [['Server-Liste aktualisieren', () => bridgeSend({ cmd: 'list' })]]);
+  const devRow = h('div', 'row two'), devSel = h('select');
+  devRow.append(h('label', null, 'Gerät'), devSel); body.append(devRow);
+  devSel.addEventListener('change', () => { L.deviceId = devSel.value; connectCamera(i); });
+  deviceSels[i] = devSel;
+  const camBtns = mkBtns(body, [['Geräte laden', async () => {
+    try { const st = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); st.getTracks().forEach(t => t.stop()); } catch (e) {}
+    refreshDevices();
+  }], ['Neu verbinden', () => connectCamera(i)]]);
+  const scrBtns = mkBtns(body, [['Fenster / Bildschirm wählen …', () => connectScreen(i)]]);
+  const fileRow = h('div', 'row two'), fin = h('input'); fin.type = 'file'; fin.accept = 'video/*,image/*';
+  fin.addEventListener('change', () => connectFile(i, fin.files[0]));
+  fileRow.append(h('label', null, 'Datei'), fin); body.append(fileRow);
+  const st = h('div', 'status'); body.append(st); statusEls[i] = st;
+  // Transport für Videodateien: Play/Pause + Zeitleiste (Scrubben), Zeit
+  const trn = h('div', 'transport');
+  const ppb = h('button', 'btn pp'); ppb.type = 'button';
+  const tl = h('input'); tl.type = 'range'; tl.min = 0; tl.max = 1; tl.step = 0.01; tl.value = 0; tl.title = T('Zeitleiste');
+  const tt = h('span', 'tt', '0:00 / 0:00');
+  trn.append(ppb, tl, tt); body.append(trn);
+  const fmtT = x => { x = Math.max(0, x || 0); const m = Math.floor(x / 60), sec = Math.floor(x % 60); return m + ':' + String(sec).padStart(2, '0'); };
+  let scrubbing = false;
+  const updTransport = () => {
+    const sl = slots[i], show = L.srcType === 'file' && sl.kind === 'video';
+    trn.classList.toggle('hide', !show);
+    if (!show) return;
+    const v = sl.video, dur = isFinite(v.duration) ? v.duration : 0;
+    tl.max = dur || 1;
+    if (!scrubbing) tl.value = v.currentTime;
+    tt.textContent = fmtT(v.currentTime) + ' / ' + fmtT(dur);
+    const ic = v.paused ? ICON.play : ICON.pause;
+    if (ppb._i !== ic) { ppb.innerHTML = ic; ppb._i = ic; ppb.title = T(v.paused ? 'Abspielen' : 'Pause'); }
+  };
+  ppb.addEventListener('click', () => { const v = slots[i].video; if (v.paused) v.play().catch(() => {}); else v.pause(); updTransport(); });
+  tl.addEventListener('pointerdown', () => { scrubbing = true; });
+  window.addEventListener('pointerup', () => { scrubbing = false; });
+  tl.addEventListener('input', () => { const v = slots[i].video; if (isFinite(v.duration)) { v.currentTime = parseFloat(tl.value); } updTransport(); });
+  transports.push(updTransport);
+  syncs.push(updTransport);
+  syncs.push(() => {
+    tk.row.classList.toggle('hide', L.srcType !== 'test');
+    syRow.classList.toggle('hide', L.srcType !== 'syphon');
+    syRes.row.classList.toggle('hide', L.srcType !== 'syphon');
+    syBtn.classList.toggle('hide', L.srcType !== 'syphon');
+    devRow.classList.toggle('hide', L.srcType !== 'camera');
+    camBtns.classList.toggle('hide', L.srcType !== 'camera');
+    scrBtns.classList.toggle('hide', L.srcType !== 'screen');
+    const sb = scrBtns.querySelector('button'); if (sb) sb.classList.toggle('primary', L.srcType === 'screen' && slots[i].type !== 'screen');
+    fileRow.classList.toggle('hide', L.srcType !== 'file');
+  });
+
+  body.append(h('h4', null, 'Zuschnitt der Quelle'));
+  const gap = 0.02;
+  // Regler zeigen, wie viel von jeder Seite abgeschnitten wird (0 % = ganzes Bild)
+  const cp = {
+    get l() { return L.crop[0]; }, set l(v) { L.crop[0] = clamp(v, 0, L.crop[2] - gap); },
+    get r() { return 1 - L.crop[2]; }, set r(v) { L.crop[2] = clamp(1 - v, L.crop[0] + gap, 1); },
+    get t() { return L.crop[1]; }, set t(v) { L.crop[1] = clamp(v, 0, L.crop[3] - gap); },
+    get b() { return 1 - L.crop[3]; }, set b(v) { L.crop[3] = clamp(1 - v, L.crop[1] + gap, 1); },
+  };
+  [['Links abschn.', 'l'], ['Rechts abschn.', 'r'], ['Oben abschn.', 't'], ['Unten abschn.', 'b']].forEach(([n, k]) =>
+    mkSlider(body, n, cp, k, 0, 0.95, 0.005, { fmt: v => Math.round(v * 100) + '%' }));
+  const cropInfo = h('div', 'status'); body.append(cropInfo);
+  syncs.push(() => {
+    const sl = slots[i], cw = L.crop[2] - L.crop[0], ch = L.crop[3] - L.crop[1];
+    cropInfo.textContent = Tf('Ausschnitt: {0} % × {1} %', Math.round(cw * 100), Math.round(ch * 100)) + (sl.w ? Tf('  ({0} × {1} px)', Math.round(sl.w * cw), Math.round(sl.h * ch)) : '');
+  });
+  // Voreinstellungen als Symbole: gefüllt = sichtbarer Teil der Quelle
+  const presetRow = h('div', 'btns icons');
+  const cropIcon = (x, y, w2, h2) => `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="currentColor" opacity=".85"/></svg>`;
+  const presets = [
+    ['Ganzes Bild', [0, 0, 1, 1], cropIcon(2.5, 3.5, 11, 9)],
+    ['Linke Hälfte', [0, 0, 0.5, 1], cropIcon(2.5, 3.5, 5.5, 9)],
+    ['Rechte Hälfte', [0.5, 0, 1, 1], cropIcon(8, 3.5, 5.5, 9)],
+    ['Obere Hälfte', [0, 0, 1, 0.5], cropIcon(2.5, 3.5, 11, 4.5)],
+    ['Untere Hälfte', [0, 0.5, 1, 1], cropIcon(2.5, 8, 11, 4.5)],
+  ];
+  const presetBtns = presets.map(([title, c, icon]) => {
+    const b = h('button', 'btn'); b.type = 'button'; b.title = T(title); b.setAttribute('aria-label', T(title)); b.innerHTML = icon;
+    b.addEventListener('click', () => { L.crop.splice(0, 4, ...c); syncUI(); save(); });
+    presetRow.append(b); return [b, c];
+  });
+  body.append(presetRow);
+  syncs.push(() => presetBtns.forEach(([b, c]) => b.classList.toggle('on', c.every((v, k) => Math.abs(v - L.crop[k]) < 0.004))));
+  const fl = h('div', 'chk'); body.append(fl);
+  mkCheck(body, 'Horizontal spiegeln', L, 'flipX');
+  mkCheck(body, 'Vertikal spiegeln', L, 'flipY');
+  fl.remove();
+
+  body.append(h('h4', null, 'Platzierung auf der Kuppel'));
+  mkSelect(body, 'Mapping', L, 'mapping', [
+    [0, 'Flach – Screen vor dem Publikum (Viereck)'],
+    [1, 'Viereck in der Domemaster-Ebene'],
+    [2, 'Viereck in Azimut/Elevation'],
+    [3, 'Panorama-Band 360° (Equirect)'],
+    [4, 'Domemaster-Vollbild (1:1 Fisheye)'],
+  ], () => applyDefaultsFor(L));
+  mkSlider(body, 'Azimut / Dreh.', L, 'az', -180, 180, 0.5, { fmt: v => v.toFixed(1) + '°' });
+  mkSlider(body, 'Elevation', L, 'el', -90, 90, 0.5, { fmt: v => v.toFixed(1) + '°' });
+  mkSlider(body, 'Größe (Breite)', L, 'size', 3, 360, 0.5, { fmt: v => v.toFixed(0) + '°' });
+  mkSlider(body, 'Roll', L, 'roll', -180, 180, 0.5, { fmt: v => v.toFixed(1) + '°' });
+  mkCheck(body, 'Seitenverhältnis folgt Quelle', L, 'autoAspect', () => autoAspect(i));
+  mkSlider(body, 'Seitenverh.', L, 'aspect', 0.2, 6, 0.01, { fmt: v => v.toFixed(2), disabled: () => L.autoAspect });
+  const kV = mkSlider(body, 'Trapez vertikal', L, 'keyV', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
+  const kH = mkSlider(body, 'Trapez horizontal', L, 'keyH', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
+  const kTip = h('div', 'status', 'Trapez vertikal: + = oben schmaler, − = oben breiter. Trapez horizontal: + = rechte Kante niedriger, − = linke Kante niedriger. Feinschliff über die Eckpunkte im Viewport.');
+  body.append(kTip);
+  syncs.push(() => { const off = L.mapping >= 3; [kV, kH].forEach(k => k.inp.parentElement.classList.toggle('hide', off)); kTip.classList.toggle('hide', off); });
+  mkBtns(body, [['Verzerrung zurücksetzen', () => { L.ox.fill(0); L.oy.fill(0); L.keyH = 0; L.keyV = 0; syncUI(); save(); }]]);
+  const info = h('div', 'info'); body.append(info);
+  syncs.push(() => {
+    const G = geom(L), R = state.dome.diameter / 2, s = slots[i];
+    const srcW = s.w * (L.crop[2] - L.crop[0]);
+    let t;
+    if (L.mapping === 4) {
+      const ppd = srcW / clamp(L.size, 5, 360);
+      t = Tf('Fisheye-Vollbild: Bildrand = {0}° Zenitdistanz · {1} px/° (Quelle {2} px)', clamp(L.size, 5, 360).toFixed(0), ppd.toFixed(1), Math.round(srcW));
+    } else if (L.mapping === 3) {
+      const wd = L.size, hd = L.size / L.aspect, ppd = srcW / wd;
+      t = Tf('Panorama {0}° × {1}° · {2} px/° (Quelle {3} px)', wd.toFixed(0), hd.toFixed(0), ppd.toFixed(1), Math.round(srcW));
+    } else if (G.ok) {
+      const ang = (a, b) => Math.acos(clamp(V.dot(uvToDir(G, L, ...a), uvToDir(G, L, ...b)), -1, 1));
+      const wd = ang([0, 0.5], [1, 0.5]) * R2D, hd = ang([0.5, 0], [0.5, 1]) * R2D;
+      t = Tf('Winkelgröße {0}° × {1}° ≈ {2} × {3} m an der Kuppel · {4} px/° (Quelle {5} px)', wd.toFixed(0), hd.toFixed(0), (wd * D2R * R).toFixed(1), (hd * D2R * R).toFixed(1), (srcW / wd).toFixed(1), Math.round(srcW));
+    } else t = T('Ungültige Verzerrung – Ecken zurücksetzen');
+    info.textContent = t + T('  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°');
+  });
+  body.append(h('div', 'status', 'Ecken ziehen = perspektivisch verzerren · Fläche ziehen = verschieben · Alt+Scrollen = skalieren'));
+
+  body.append(h('h4', null, 'Darstellung'));
+  mkSlider(body, 'Deckkraft', L, 'opacity', 0, 1, 0.01, { fmt: v => Math.round(v * 100) + '%' });
+  mkSelect(body, 'Blend', L, 'blend', BLEND_OPTS);
+  const fmtF = v => Math.round(v * 200) + '%';
+  const fAll = mkSlider(body, 'Randweiche', L, 'feather', 0, 0.5, 0.005, { fmt: fmtF });
+  mkCheck(body, 'Randweiche pro Seite', L, 'feSplit', () => {
+    if (L.feSplit && L.fe.every(v => v === 0)) L.fe.fill(L.feather);
+  });
+  const fSides = [['Links', 0], ['Rechts', 1], ['Oben', 2], ['Unten', 3]].map(([n, k]) =>
+    mkSlider(body, '  ' + T(n), L.fe, k, 0, 0.5, 0.005, { fmt: fmtF }));
+  mkSlider(body, 'Verlauf', L, 'fCurve', 0, 1, 0.01, { fmt: v => T(v < 0.45 ? 'kompakt' : v > 0.55 ? 'weit' : 'normal') });
+  body.append(h('div', 'status', 'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.'));
+  syncs.push(() => {
+    fAll.inp.parentElement.classList.toggle('hide', !!L.feSplit);
+    fSides.forEach(f => f.inp.parentElement.classList.toggle('hide', !L.feSplit));
+  });
+  body.append(h('h4', null, 'Rand erweitern (Hintergrund füllen)'));
+  mkSelect(body, 'Modus', L, 'extend', [[0, 'Aus'], [1, 'Rand-Pixel strecken'], [2, 'Randfarbe füllen (Median)']]);
+  mkSlider(body, 'Rand-Einzug', L, 'extInset', 0, 0.12, 0.002, { fmt: v => (v * 100).toFixed(1) + '%' });
+  body.append(h('div', 'status', 'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.'));
+  groupify(body, ['Zuschnitt der Quelle', 'Rand erweitern (Hintergrund füllen)']);
+  return card;
+}
+const HELP_HTML = {
+  de: `<summary>Syphon einrichten</summary>
+  <p>Browser können Syphon nicht direkt lesen (nur macOS). Die kleine Brücke <code>bridge/syphon-bridge</code> übernimmt das:</p>
+  <ol>
+    <li><code>./bridge/start.command</code> starten (baut beim ersten Mal selbst, braucht die Xcode Command Line Tools).</li>
+    <li>Die Seite über <b>http://localhost:8766</b> öffnen.</li>
+    <li>Beim Layer „Syphon (über Brücke)“ wählen und den Server auswählen, z. B. Millumin-Canvas.</li>
+    <li>Unter „Syphon-Ausgabe“ Domemaster und/oder Ansicht als eigene Syphon-Server ausgeben (auch gleichzeitig).</li>
+  </ol>
+  <p>Fehlt ein Syphon.framework, nimmt die Brücke eines aus einer installierten App (Millumin, Resolume, …). Alternativ <code>SYPHON_FRAMEWORK=/Pfad/Syphon.framework</code> setzen.</p>
+  <p>Ohne Brücke (und auf Windows/Linux) gehen weiterhin Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei.</p>`,
+  en: `<summary>Syphon setup</summary>
+  <p>Browsers cannot read Syphon directly (macOS only). The small bridge <code>bridge/syphon-bridge</code> does that:</p>
+  <ol>
+    <li>Start <code>./bridge/start.command</code> (builds itself on first run, needs the Xcode Command Line Tools).</li>
+    <li>Open the page via <b>http://localhost:8766</b>.</li>
+    <li>Choose “Syphon (via bridge)” for a layer and pick the server, e.g. a Millumin canvas.</li>
+    <li>Under “Syphon output” send the domemaster and/or the view as their own Syphon servers (also simultaneously).</li>
+  </ol>
+  <p>If no Syphon.framework is found, the bridge uses one from an installed app (Millumin, Resolume, …). Alternatively set <code>SYPHON_FRAMEWORK=/path/Syphon.framework</code>.</p>
+  <p>Without the bridge (and on Windows/Linux) camera / virtual cam, window capture and video files still work.</p>`,
+};
+const ABOUT_HTML = {
+  de: `<b>HOPE Dome Sim</b> · von <b>Sonarkon</b> · <a href="https://github.com/sonarkon/Dome-Sim" target="_blank" rel="noopener">GitHub</a><br>
+    Syphon (BSD-2-Clause, © Syphon-Mitwirkende) über die Brücke, nur macOS · <a href="https://syphon.github.io/" target="_blank" rel="noopener">syphon.github.io</a><br>
+    Domemaster nach den <a href="https://imersa.org/guidelines" target="_blank" rel="noopener">IMERSA-Richtlinien</a>`,
+  en: `<b>HOPE Dome Sim</b> · by <b>Sonarkon</b> · <a href="https://github.com/sonarkon/Dome-Sim" target="_blank" rel="noopener">GitHub</a><br>
+    Syphon (BSD 2-clause, © Syphon contributors) via the bridge, macOS only · <a href="https://syphon.github.io/" target="_blank" rel="noopener">syphon.github.io</a><br>
+    Domemaster per the <a href="https://imersa.org/guidelines" target="_blank" rel="noopener">IMERSA guidelines</a>`,
+};
+function projectSlug() {
+  return (state.project || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').slice(0, 60);
+}
+function applyProjectTitle() {
+  const n = (state.project || '').trim();
+  document.title = (n ? n + ' – ' : '') + 'HOPE Dome Sim';
+}
+function buildPanel() {
+  // ───── links: Ebenen ─────
+  const brand = h('div', 'brand'); brand.innerHTML = '<b>HOPE</b> Dome Sim';
+  const sw = h('span', 'langsw'); sw.title = T('Sprache');
+  ['de', 'en'].forEach(l => {
+    const b = h('button', l === LANG ? 'on' : ''); b.type = 'button'; b.textContent = l.toUpperCase();
+    b.addEventListener('click', () => { try { localStorage.setItem(LANG_KEY, l); } catch (e) {} location.reload(); });
+    sw.append(b);
+  });
+  brand.append(sw); panelL.append(brand);
+  const projIn = h('input', 'projname'); projIn.type = 'text'; projIn.placeholder = T('Projektname'); projIn.spellcheck = false;
+  projIn.maxLength = 80; projIn.setAttribute('aria-label', T('Projektname'));
+  projIn.addEventListener('input', () => { state.project = projIn.value; applyProjectTitle(); save(); });
+  syncs.push(() => { if (document.activeElement !== projIn) projIn.value = state.project || ''; applyProjectTitle(); });
+  panelL.append(projIn);
+  const staticSec = title => { const box = h('div', 'staticsec'); box.append(h('div', 'seclabel', title)); panelL.append(box); return box; };
+  buildLayerList(staticSec('Ebenen'));
+  const selBody = staticSec('Layer-Einstellungen');
+  for (let i = 0; i < MAXL; i++) { const c = buildLayer(i); selBody.append(c); cards.push(c); }
+
+  // ───── rechts: Ausgabe & Ansicht ─────
+  const d = state.dome, cm = state.cam, o = state.out;
+
+  // Preset: feste Leiste ganz oben (nicht einklappbar)
+  const pb = h('div', 'presetbar'); pb.append(h('div', 'presetlabel', 'Preset')); panelR.append(pb);
+  mkBtns(pb, [
+    ['Exportieren', () => {
+      const a = h('a'); a.download = (projectSlug() ? projectSlug() + '_' : '') + 'hope-dome-sim-preset.json';
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' }));
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }],
+    ['Importieren', () => {
+      const f = h('input'); f.type = 'file'; f.accept = '.json,application/json';
+      f.onchange = async () => {
+        try { deepAssign(state, JSON.parse(await f.files[0].text())); state.layers.forEach((L, i) => { if (L.srcType !== 'camera') L.srcType = 'test'; useTest(i); }); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); } catch (e) { alert(Tf('Preset ungültig: {0}', e.message)); }
+      }; f.click();
+    }],
+    ['Alles zurücksetzen', () => { deepAssign(state, defState()); state.layers.forEach((_, i) => useTest(i)); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); }],
+  ]);
+
+  const vb = mkSection(panelR, 'Ansicht & Kuppel');
+  mkSlider(vb, 'Durchmesser', d, 'diameter', 4, 40, 0.5, { fmt: v => v + ' m', onInput: () => { seat.inp.max = (d.diameter / 2 * 0.9).toFixed(1); d.seatDist = Math.min(d.seatDist, d.diameter / 2 * 0.9); } });
+  mkSlider(vb, 'Augenhöhe', d, 'eyeH', 0.4, 2.2, 0.01, { fmt: v => v.toFixed(2) + ' m' });
+  mkSlider(vb, 'Kuppelrand', d, 'spring', 0, 3, 0.01, { fmt: v => v.toFixed(2) + ' m' });
+  const offRow = h('div', 'status'); vb.append(offRow);
+  syncs.push(() => { const off = d.eyeH - d.spring; offRow.textContent = Tf('Auge zur Kuppelmitte: {0}{1} m  (Kuppelrand = Höhe über Boden; darunter Rundwand)', off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)); });
+  mkBtns(vb, [['Kuppelrand auf Augenhöhe', () => { d.spring = d.eyeH; syncUI(); save(); }]]);
+  const seat = mkSlider(vb, 'Sitz: Abstand', d, 'seatDist', 0, d.diameter / 2 * 0.9, 0.1, { fmt: v => v.toFixed(1) + ' m' });
+  seat.inp.max = (d.diameter / 2 * 0.9).toFixed(1);
+  mkSlider(vb, 'Sitz: Winkel', d, 'seatAng', 0, 360, 1, { fmt: v => v + '° ' + T('(0=vorn)') });
+  mkSelect(vb, 'Linse (Innen)', d, 'lens', [[0, 'Rechtwinklig'], [1, 'Fisheye (equidistant)']]);
+  const fov = { get v() { return d.lens ? cm.fovFish : cm.fovRect; }, set v(x) { if (d.lens) cm.fovFish = clamp(x, 30, 240); else cm.fovRect = clamp(x, 30, 140); } };
+  mkSlider(vb, 'Blickfeld', fov, 'v', 30, 240, 1, { fmt: v => Math.round(v) + '°' });
+  mkSlider(vb, 'Kuppel-Grundhell.', d, 'ambient', 0, 0.3, 0.005, { fmt: v => Math.round(v * 100) + '%' });
+  mkBtns(vb, [
+    ['Blick zurücksetzen', () => { Object.assign(cm, defState().cam); syncUI(); save(); }],
+    ['Sitz in die Mitte', () => { d.seatDist = 0; syncUI(); save(); }],
+  ]);
+
+  const wb = mkSection(panelR, 'Domemaster-Fenster');
+  mkBtns(wb, [['Domemaster in eigenem Fenster öffnen', openDomeWindow]]);
+  mkSelect(wb, 'Fenster-Rate', state.win, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps'], [120, '120 fps']]);
+  mkSelect(wb, 'Max. Auflösung', state.win, 'max', [[1024, '1024 px'], [2048, '2048 px'], [3072, '3072 px'], [4096, '4096 px']]);
+  domeWin.statusEl = h('div', 'status', 'Kein Fenster geöffnet'); wb.append(domeWin.statusEl);
+  wb.append(h('div', 'status', 'Zeigt das 1:1-Domemaster ohne Raster und Rahmen, unabhängig vom Show-Modus. Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls.'));
+
+  const sb = mkSection(panelR, 'Syphon');
+  bridge.statusEl = h('div', 'status'); sb.append(bridge.statusEl);
+  mkBtns(sb, [['Brücke neu verbinden', () => { try { bridge.ws && bridge.ws.close(); } catch (e) {} setTimeout(bridgeConnect, 50); }]]);
+  const outBlock = (key, title, ratio) => {
+    const oo = o[key];
+    mkCheck(sb, title, oo, 'on', () => { if (oo.on) outStartMsg(key); else bridgeSend({ cmd: 'out_stop', id: OUT_ID[key] }); });
+    const row = h('div', 'row two'), inp = h('input'); inp.type = 'text'; inp.value = oo.name;
+    inp.style.cssText = 'width:100%;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit';
+    inp.addEventListener('change', () => { oo.name = inp.value.trim() || oo.name; if (oo.on) outStartMsg(key); save(); });
+    row.append(h('label', null, 'Servername'), inp); sb.append(row);
+    mkSelect(sb, 'Größe', oo, 'size', ratio === 1
+      ? [[512, '512 × 512'], [1024, '1024 × 1024'], [1536, '1536 × 1536'], [2048, '2048 × 2048']]
+      : [[960, '960 × 540'], [1280, '1280 × 720'], [1920, '1920 × 1080']]);
+  };
+  outBlock('master', 'Domemaster 1:1 (Fisheye) ausgeben', 1);
+  outBlock('view', 'Aktuelle Ansicht (16:9) ausgeben', 0);
+  mkSelect(sb, 'Bildrate', o, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps']]);
+  mkCheck(sb, 'Ausgabe vertikal spiegeln', o, 'flip');
+  bridge.outEl = h('div', 'status', 'Ausgabe aus'); sb.append(bridge.outEl);
+  sb.append(h('div', 'status', 'Rohe Frames über localhost: 1024 px ≈ 4 MB pro Bild, 2048 px ≈ 16 MB.'));
+  const det = h('details');
+  det.innerHTML = HELP_HTML[LANG];
+  sb.append(det);
+
+  const mb = mkSection(panelR, 'Show-Modus', { collapsed: true });
+  mkCheck(mb, 'Show-Modus (nur die Vorschau drosseln)', state.show, 'on', () => { showBtn.classList.toggle('on', state.show.on); resize(); });
+  mkSelect(mb, 'Anzeige-Rate', state.show, 'fps', [[5, '5 fps'], [10, '10 fps'], [15, '15 fps'], [30, '30 fps']]);
+  mkSelect(mb, 'Anzeige-Größe', state.show, 'scale', [[0.25, '25 %'], [0.5, '50 %'], [0.75, '75 %'], [1, '100 %']], () => resize());
+  mb.append(h('div', 'status', 'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.'));
+
+  const foot = h('div', 'credits'); foot.innerHTML = ABOUT_HTML[LANG]; panelR.append(foot);
+}
+
+/* ───────────── Rendering ───────────── */
+const geoms = new Array(MAXL).fill(null);
+const mat = new Float32Array(9 * MAXL), v3 = { C: new Float32Array(3 * MAXL), R: new Float32Array(3 * MAXL), Uu: new Float32Array(3 * MAXL) };
+let uiDirty = false;
+const outFbos = { master: { fbo: null, tex: null, w: 0, h: 0, buf: null }, view: { fbo: null, tex: null, w: 0, h: 0, buf: null } };
+const lastOut = { master: 0, view: 0 };
+function ensureFbo(f, id, w, h) {
+  if (f.w === w && f.h === h) return;
+  if (f.tex) gl.deleteTexture(f.tex);
+  if (f.fbo) gl.deleteFramebuffer(f.fbo);
+  f.tex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0 + MAXL + 2);
+  gl.bindTexture(gl.TEXTURE_2D, f.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  f.fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, f.tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  f.w = w; f.h = h;
+  f.buf = new Uint8Array(12 + w * h * 4);
+  const dv = new DataView(f.buf.buffer); dv.setUint32(0, id, true); dv.setUint32(4, w, true); dv.setUint32(8, h, true);
+}
+function setLayerUniforms() {
+  const on = [], op = [], fe = [], az = [], mo = [], bl = [], cr = [], fl = [], pan = [], ex = [], fill = [], asp = [], ins = [], fv = [], fg = [];
+  for (let k = 0; k < MAXL; k++) {
+    const id = state.order[k], L = id != null ? state.layers[id] : null, G = id != null ? geoms[id] : null;
+    if (!L || !G) {
+      on.push(0); op.push(0); fe.push(0); az.push(0); mo.push(0); bl.push(0);
+      cr.push(0, 0, 1, 1); fl.push(0, 0); pan.push(0, 0, 1, 1); ex.push(0); fill.push(0, 0, 0); asp.push(1); ins.push(0); fv.push(0, 0, 0, 0); fg.push(1);
+      v3.C.set([0, 0, 1], k * 3); v3.R.set([1, 0, 0], k * 3); v3.Uu.set([0, 1, 0], k * 3);
+      mat.set([1, 0, 0, 0, 1, 0, 0, 0, 1], k * 9);
+      continue;
+    }
+    pan.push(...(G.pan || [0, 0, 1, 1]));
+    on.push(L.on && G.ok ? 1 : 0); op.push(L.opacity); fe.push(L.feather); az.push(G.azc); mo.push(L.mapping); bl.push(L.blend);
+    v3.C.set(G.c, k * 3); v3.R.set(G.r, k * 3); v3.Uu.set(G.u, k * 3);
+    const m = G.Hinv || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    for (let r = 0; r < 3; r++) for (let q = 0; q < 3; q++) mat[k * 9 + q * 3 + r] = m[r * 3 + q];
+    cr.push(...L.crop); fl.push(L.flipX ? 1 : 0, L.flipY ? 1 : 0);
+    ex.push(L.extend | 0); fill.push(...slots[id].fill);
+    asp.push(L.mapping === 4 ? 1 : L.aspect); ins.push(L.extInset);
+    fv.push(...(L.feSplit ? L.fe : [L.feather, L.feather, L.feather, L.feather]));
+    fg.push(Math.pow(2, (L.fCurve - 0.5) * 4));
+  }
+  gl.uniform1iv(U.uExt, ex); gl.uniform3fv(U.uFill, fill); gl.uniform1fv(U.uAsp, asp); gl.uniform1fv(U.uInset, ins); gl.uniform4fv(U.uFeath, fv); gl.uniform1fv(U.uFGam, fg);
+  gl.uniform1fv(U.uOn, on); gl.uniform1fv(U.uOpacity, op); gl.uniform1fv(U.uFeather, fe); gl.uniform1fv(U.uAz, az);
+  gl.uniform1iv(U.uMode, mo); gl.uniform1iv(U.uBlend, bl);
+  gl.uniform3fv(U.uC, v3.C); gl.uniform3fv(U.uR, v3.R); gl.uniform3fv(U.uU, v3.Uu);
+  gl.uniformMatrix3fv(U.uH, false, mat);
+  gl.uniform4fv(U.uCrop, cr); gl.uniform4fv(U.uPan, pan); gl.uniform2fv(U.uFlip, fl);
+}
+// ein Render-Durchgang in die aktuell gebundene Zielfläche
+function pass(w, h, o) {
+  const c = o.cam;
+  gl.viewport(0, 0, w, h);
+  gl.uniform2f(U.uRes, w, h);
+  gl.uniform1i(U.uView, o.view);
+  if (c.kind === '3d') {
+    gl.uniform3fv(U.uEye, c.eye); gl.uniform3fv(U.uRight, c.right); gl.uniform3fv(U.uUp, c.up); gl.uniform3fv(U.uFwd, c.fwd);
+    gl.uniform1f(U.uTanH, c.tanH); gl.uniform1f(U.uFishH, c.fov / 2); gl.uniform1i(U.uLens, c.lens);
+  }
+  gl.uniform3fv(U.uSeat, seatPos());
+  gl.uniform1f(U.uBase, o.base); gl.uniform1f(U.uGrid, o.grid);
+  gl.uniform1f(U.uMS, o.ms); gl.uniform1f(U.uOutBg, o.bg); gl.uniform1f(U.uRingK, o.ring);
+  gl.uniform1f(U.uFlipY, o.flip); gl.uniform1f(U.uBGR, o.bgr); gl.uniform1f(U.uFloorY, floorY());
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+const viewIdx = v => v === 'inside' ? 0 : v === 'outside' ? 1 : 2;
+function sendOutput(t) {
+  const o = state.out, ws = bridge.ws;
+  if (!ws || ws.readyState !== 1) return;
+  for (const key of ['master', 'view']) {
+    const oo = o[key];
+    if (!oo.on || !bridge.out[key]) continue;
+    if (t - lastOut[key] < 1000 / o.fps - 2) continue;
+    const w = oo.size, h = key === 'master' ? oo.size : Math.round(oo.size * 9 / 16);
+    if (ws.bufferedAmount > w * h * 4 * 1.5) continue;   // Gegendruck
+    lastOut[key] = t;
+    const f = outFbos[key];
+    ensureFbo(f, OUT_ID[key], w, h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo);
+    const flip = o.flip ? -1 : 1;
+    if (key === 'master') {
+      pass(w, h, { cam: { kind: 'master' }, view: 2, base: 0, grid: 0, ms: 1, bg: 0, ring: 0, flip, bgr: 1 });
+    } else {
+      const v = state.view === 'master' ? 'inside' : state.view, c = cam(v), d = state.dome;
+      pass(w, h, { cam: c, view: viewIdx(v), base: d.ambient, grid: d.gridOn ? d.grid : 0, ms: 0.92, bg: 0, ring: 0, flip, bgr: 1 });
+    }
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, f.buf, 12);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    ws.send(f.buf);
+    perf.out++;
+  }
+}
+const edgeCv = document.createElement('canvas'); edgeCv.width = 48; edgeCv.height = 27;
+const edgeCtx = edgeCv.getContext('2d', { willReadFrequently: true });
+let frameNo = 0;
+// Render-Schleife: läuft über das Hauptfenster UND das Domemaster-Fenster (damit ein verdecktes Hauptfenster nicht drosselt)
+let lastTick = -1, rafPending = false;
+function tick() {
+  const t = performance.now();
+  if (Math.abs(t - lastTick) < 4) return;
+  lastTick = t;
+  try { render(t); } catch (e) { console.error(e); scheduleFrame(); }   // Schleife darf nie abreißen
+}
+function scheduleFrame() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; tick(); scheduleFrame(); });
+}
+// ───── Separates Domemaster-Fenster (z. B. für den externen Monitor) ─────
+// Eigener WebGL-Kontext im Fenster: kein Rücklesen von der GPU, kein CPU-Kopieren.
+const domeWin = { w: null, cv: null, c: null, last: 0, statusEl: null, loop: false, frames: 0 };
+// Eigene rAF-Kette im Fenster: unabhängig von Show-Modus und von der Hauptfenster-Schleife.
+// Steht die Hauptschleife (Hauptfenster verdeckt), übernimmt das Fenster sie mit.
+function domeWindowGone() { domeWin.w = null; domeWin.c = null; domeWin.loop = false; if (domeWin.statusEl) domeWin.statusEl.textContent = T('Fenster geschlossen'); }
+function popupLoop() {
+  const w = domeWin.w;
+  if (!w || w.closed) { domeWindowGone(); return; }
+  const t = performance.now();
+  if (t - lastTick > 100) tick();
+  try { drawDomeWindow(t); } catch (e) { console.error(e); closeDomeWindow(); return; }
+  try { w.requestAnimationFrame(popupLoop); } catch (e) { domeWindowGone(); }
+}
+function attachDomeWindow(w) {
+  const d = w.document;
+  d.title = ((state.project || '').trim() ? state.project.trim() + ' – ' : '') + 'HOPE Dome Sim – Domemaster';
+  d.head.innerHTML = '<meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}' +
+    'canvas{display:block;position:absolute;inset:0;margin:auto;width:min(100vw,100vh);height:min(100vw,100vh);background:#000}</style>';
+  d.body.innerHTML = '';
+  const cv = d.createElement('canvas'); cv.width = cv.height = 1024;
+  d.body.appendChild(cv);
+  const c = makeGLContext(cv);
+  if (!c) { w.close(); if (domeWin.statusEl) domeWin.statusEl.textContent = T('WebGL2 im Fenster nicht verfügbar'); return; }
+  const toggleFs = () => { if (d.fullscreenElement) d.exitFullscreen(); else d.documentElement.requestFullscreen().catch(() => {}); };
+  d.addEventListener('dblclick', toggleFs);
+  w.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') toggleFs(); });
+  domeWin.w = w; domeWin.cv = cv; domeWin.c = c; domeWin.last = 0;
+  if (!domeWin.loop) { domeWin.loop = true; w.requestAnimationFrame(popupLoop); }
+  if (domeWin.statusEl) domeWin.statusEl.textContent = T('Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild');
+}
+function openDomeWindow() {
+  if (domeWin.w && !domeWin.w.closed) { domeWin.w.focus(); return; }
+  const w = window.open('', 'hope-dome-sim-master', 'popup=yes,width=860,height=860');
+  if (!w) { if (domeWin.statusEl) domeWin.statusEl.textContent = T('Popup blockiert – bitte Popups für diese Seite erlauben.'); return; }
+  attachDomeWindow(w);
+}
+function closeDomeWindow() {
+  try { if (domeWin.w && !domeWin.w.closed) domeWin.w.close(); } catch (e) {}
+  domeWindowGone();
+}
+function drawDomeWindow(t) {
+  const w = domeWin.w;
+  if (!w) return;
+  if (w.closed) { domeWindowGone(); return; }
+  if (t - domeWin.last < 1000 / state.win.fps - 2) return;
+  domeWin.last = t; domeWin.frames++;
+  const px = Math.min(w.innerWidth, w.innerHeight) * (w.devicePixelRatio || 1);
+  const n = Math.max(256, Math.min(state.win.max, Math.round(px)));
+  if (domeWin.cv.width !== n) { domeWin.cv.width = domeWin.cv.height = n; }
+  useCtx(domeWin.c);
+  try {
+    uploadTextures(domeWin.c, t, false);
+    setLayerUniforms();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    pass(n, n, { cam: { kind: 'master' }, view: 2, base: 0, grid: 0, ms: 1, bg: 0, ring: 0, flip: 1, bgr: 0 });
+  } finally { useCtx(mainCtx); }
+}
+let lastDisp = 0, drawOverlayWhenDue = null;
+// Median der Randpixel des (zugeschnittenen) Bildes = „Hintergrundfarbe“
+function updateFill(s, src, L) {
+  try {
+    const w = src.videoWidth || src.width, h = src.videoHeight || src.height;
+    if (!w || !h) return;
+    const cw = L.crop[2] - L.crop[0], ch0 = L.crop[3] - L.crop[1], k = L.extInset;
+    edgeCtx.drawImage(src, (L.crop[0] + cw * k) * w, (L.crop[1] + ch0 * k) * h, cw * (1 - 2 * k) * w, ch0 * (1 - 2 * k) * h, 0, 0, 48, 27);
+    const d = edgeCtx.getImageData(0, 0, 48, 27).data, ch = [[], [], []];
+    const take = (x, y) => { const o = (y * 48 + x) * 4; ch[0].push(d[o]); ch[1].push(d[o + 1]); ch[2].push(d[o + 2]); };
+    for (let x = 0; x < 48; x++) { take(x, 0); take(x, 26); }
+    for (let y = 1; y < 26; y++) { take(0, y); take(47, y); }
+    for (let k = 0; k < 3; k++) { ch[k].sort((a, b) => a - b); const m = ch[k][ch[k].length >> 1] / 255; s.fill[k] += (m - s.fill[k]) * 0.5; }
+  } catch (e) { /* tainted / nicht bereit */ }
+}
+const perf = { frames: 0, out: 0, t0: 0, ms: 0, lastT: 0, el: null, outMs: 0, outN: 0 };
+function updateFps(t) {
+  if (!perf.el) perf.el = document.getElementById('fps');
+  if (perf.lastT) perf.ms = perf.ms * 0.9 + (t - perf.lastT) * 0.1;
+  perf.lastT = t; perf.frames++;
+  if (!perf.t0) perf.t0 = t;
+  const dt = t - perf.t0;
+  if (dt < 500) return;
+  const fps = perf.frames * 1000 / dt, outFps = perf.out * 1000 / dt;
+  const outCost = perf.outN ? perf.outMs / perf.outN : 0;
+  perf.frames = 0; perf.out = 0; perf.t0 = t; perf.outMs = 0; perf.outN = 0;
+  const cls = fps < 24 ? 'bad' : fps < 50 ? 'warn' : '';
+  let txt = `<span class="${cls}"><b>${fps.toFixed(0)}</b> fps</span> · ${perf.ms.toFixed(1)} ms` + (state.show.on ? T(' · Show-Modus') : '');
+  const o = state.out;
+  if ((o.master.on && bridge.out.master) || (o.view.on && bridge.out.view)) txt += '\n' + Tf('Syphon-Ausgabe <b>{0}</b> fps · {1} ms/Bild', outFps.toFixed(0), outCost.toFixed(1));
+  perf.el.innerHTML = txt;
+}
+// Texturen: Layer an Position k (Z-Reihenfolge) → Texture-Unit k. isMain=false: zweiter Kontext (Domemaster-Fenster)
+function uploadTextures(c, t, isMain) {
+  for (let k = 0; k < MAXL; k++) {
+    const id = state.order[k];
+    gl.activeTexture(gl.TEXTURE0 + k);
+    if (id == null) { gl.bindTexture(gl.TEXTURE_2D, dummyTex); continue; }
+    const s = slots[id], L = state.layers[id];
+    gl.bindTexture(gl.TEXTURE_2D, s.tex);
+    if (!L.on) continue;
+    let src = null;
+    if (s.type === 'test') { if (isMain) drawTest(s, t / 1000); src = s.canvas; }
+    else if (s.type === 'syphon') {
+      if (isMain) {
+        if (s.pending) { if (s.bitmap) s.bitmap.close(); s.bitmap = s.pending; s.pending = null; s.dirty = true; }
+        if (s.bitmap && s.dirty) { src = s.bitmap; s.dirty = false; }
+      } else if (s.bitmap && c.lastBitmap[id] !== s.bitmap) { src = s.bitmap; c.lastBitmap[id] = s.bitmap; }
+    }
+    else if (s.type === 'image') {
+      if (isMain) { if (s.img && s.dirty) { src = s.img; s.dirty = false; } }
+      else if (s.img && c.lastBitmap[id] !== s.img) { src = s.img; c.lastBitmap[id] = s.img; }
+    }
+    else if (s.video.readyState >= 2 && s.video.videoWidth) src = s.video;
+    if (src) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    if (isMain && L.extend === 2 && src && (frameNo + id) % 6 === 0) updateFill(s, src, L);
+  }
+}
+function render(t) {
+  // Layer-Geometrie + Aspect
+  for (let i = 0; i < MAXL; i++) {
+    const L = state.layers[i];
+    if (!L.used) { geoms[i] = null; continue; }
+    if (autoAspect(i)) uiDirty = true;
+    geoms[i] = geom(L);
+  }
+  if (uiDirty) { uiDirty = false; syncUI(); }
+
+  uploadTextures(mainCtx, t, true);
+  frameNo++;
+
+  setLayerUniforms();
+  // Show-Modus: lokale Anzeige nur mit show.fps zeichnen, die Syphon-Ausgänge laufen mit ihrer eigenen Rate weiter
+  const sh = state.show;
+  const due = !sh.on || t - lastDisp >= 1000 / sh.fps - 2;
+  if (due) {
+    lastDisp = t;
+    updateFps(t);
+    const c = cam(), d = state.dome, master = state.view === 'master';
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    pass(glc.width, glc.height, { cam: c, view: viewIdx(state.view), base: master ? 0 : d.ambient, grid: d.gridOn ? d.grid : 0, ms: 0.92, bg: master ? 0.03 : 0, ring: 1, flip: 1, bgr: 0 });
+    drawOverlayWhenDue = c;
+  }
+  const tOut = performance.now(), nOut = perf.out;
+  try { sendOutput(t); } catch (e) { console.error(e); state.out.master.on = state.out.view.on = false; syncUI(); }
+  if (perf.out !== nOut) { perf.outMs += performance.now() - tOut; perf.outN += perf.out - nOut; }
+  if (due) drawOverlay(drawOverlayWhenDue);
+  scheduleFrame();
+}
+
+function drawOverlay(c) {
+  octx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  octx.clearRect(0, 0, W, H);
+  const drawOrder = state.showUI ? state.order.filter(i => i !== state.sel).concat(state.order.includes(state.sel) ? [state.sel] : []) : [];
+  for (const i of drawOrder) {
+    const L = state.layers[i], G = geoms[i];
+    if (!L.used || !L.on || L.locked || !G || !G.ok) continue;   // gesperrte Layer: kein Rahmen
+    const sel = i === state.sel, col = slots[i].color;
+    octx.lineWidth = sel ? 2 : 1.25; octx.strokeStyle = col; octx.globalAlpha = sel ? 0.95 : 0.5;
+    const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    octx.beginPath();
+    let pen = false;
+    for (let k = 0; k < 4; k++) {
+      const a = uvs[k], b = uvs[(k + 1) % 4];
+      for (let s = 0; s <= 24; s++) {
+        const t = s / 24, p = dirToScreen(uvToDir(G, L, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t), c);
+        if (!p) { pen = false; continue; }
+        if (!pen) { octx.moveTo(p[0], p[1]); pen = true; } else octx.lineTo(p[0], p[1]);
+      }
+    }
+    octx.stroke();
+    // Zentrum + Label
+    const cp = dirToScreen(uvToDir(G, L, 0.5, 0.5), c);
+    if (cp) {
+      octx.globalAlpha = sel ? 0.9 : 0.6; octx.fillStyle = col;
+      octx.font = '600 12px -apple-system, system-ui, sans-serif'; octx.textAlign = 'left'; octx.textBaseline = 'bottom';
+      octx.beginPath(); octx.arc(cp[0], cp[1], 3, 0, TAU); octx.fill();
+      octx.fillText(L.name || slots[i].label, cp[0] + 7, cp[1] - 5);
+    }
+    if (sel && !G.pano) {
+      octx.globalAlpha = 1;
+      G.dirs.forEach((dv, k) => {
+        const p = dirToScreen(dv, c); if (!p) return;
+        octx.beginPath(); octx.arc(p[0], p[1], 7, 0, TAU);
+        octx.fillStyle = col; octx.fill(); octx.lineWidth = 2; octx.strokeStyle = '#0b0d14'; octx.stroke();
+      });
+    }
+  }
+  octx.globalAlpha = 1;
+  // Sitz-Marker (Außenansicht) und HUD (Innenansicht)
+  const dm = state.dome, R = dm.diameter / 2;
+  octx.font = '600 12px -apple-system, system-ui, sans-serif';
+  if (state.showUI && c.kind === '3d' && c.outside) {
+    const sp = seatPos(), p = dirToScreen([sp[0], floorY(), sp[2]], c);
+    if (p) {
+      octx.strokeStyle = '#ffcc33'; octx.lineWidth = 2; octx.beginPath(); octx.arc(p[0], p[1], 11, 0, TAU); octx.stroke();
+      octx.fillStyle = '#ffcc33'; octx.textAlign = 'left'; octx.textBaseline = 'middle';
+      octx.fillText(Tf('Sitz · {0} m · Auge {1} m  (ziehen)', dm.seatDist.toFixed(1), dm.eyeH.toFixed(2)), p[0] + 16, p[1]);
+    }
+  }
+  if (state.view === 'inside') {
+    const fov = dm.lens ? state.cam.fovFish : state.cam.fovRect;
+    octx.fillStyle = 'rgba(231,233,238,.85)'; octx.textAlign = 'right'; octx.textBaseline = 'top';
+    const off = dm.eyeH - dm.spring;
+    octx.fillText(Tf('Augenhöhe {0} m · Kuppelrand {1} m · Versatz zur Mitte {2}{3} m', dm.eyeH.toFixed(2), dm.spring.toFixed(2), off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)), W - 14, 14);
+    octx.fillText(Tf('Sitz {0} m @ {1}° · FOV {2}°', dm.seatDist.toFixed(1), Math.round(dm.seatAng), Math.round(fov)), W - 14, 32);
+  }
+}
+
+/* ───────────── Interaktion ───────────── */
+let drag = null;
+function cursorXY(e) { const r = ov.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+ov.addEventListener('pointerdown', e => {
+  ov.setPointerCapture(e.pointerId);
+  const c = cam(), [x, y] = cursorXY(e);
+  if (!state.showUI) { drag = { type: 'look', x, y }; ov.classList.add('grabbing'); return; }
+  if (c.kind === '3d' && c.outside) {
+    const sp = seatPos(), p = dirToScreen([sp[0], floorY(), sp[2]], c);
+    if (p && Math.hypot(p[0] - x, p[1] - y) < 18) { drag = { type: 'seat' }; ov.classList.add('grabbing'); return; }
+  }
+  const L = state.layers[state.sel], G = geoms[state.sel];
+  if (L && L.used && !L.locked && L.on && G && G.ok && !G.pano) {
+    for (let k = 0; k < 4; k++) {
+      const p = dirToScreen(G.dirs[k], c);
+      if (p && Math.hypot(p[0] - x, p[1] - y) < 14) { drag = { type: 'corner', k, i: state.sel }; ov.classList.add('grabbing'); return; }
+    }
+  }
+  const dv = screenToDir(x, y, c);
+  if (dv) {
+    for (const i of [...state.order].reverse()) {
+      const Li = state.layers[i], Gi = geoms[i];
+      if (!Li.used || !Li.on || Li.locked || !Gi || !Gi.ok) continue;
+      const uv = layerUV(Gi, Li, dv);
+      if (uv && uv[0] >= 0 && uv[0] <= 1 && uv[1] >= 0 && uv[1] <= 1) {
+        selectLayer(i);
+        drag = { type: 'move', i, g0: dv, az: Li.az, c0: Gi.c, r0: Gi.r };
+        ov.classList.add('grabbing'); return;
+      }
+    }
+  }
+  drag = { type: 'look', x, y }; ov.classList.add('grabbing');
+});
+ov.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const c = cam(), [x, y] = cursorXY(e);
+  if (drag.type === 'look') {
+    const dx = x - drag.x, dy = y - drag.y; drag.x = x; drag.y = y;
+    if (state.view === 'inside') {
+      const k = (c.fov * R2D) / H * (c.lens ? 0.9 : 1);
+      state.cam.yaw -= dx * k; state.cam.pitch = clamp(state.cam.pitch + dy * k, -30, 90);
+      if (state.cam.yaw > 180) state.cam.yaw -= 360; if (state.cam.yaw < -180) state.cam.yaw += 360;
+    } else if (state.view === 'outside') {
+      state.cam.outYaw -= dx * 0.35; state.cam.outPitch = clamp(state.cam.outPitch + dy * 0.35, 3, 85);
+    }
+    save(); return;
+  }
+  if (drag.type === 'seat') {
+    const rd = camRay(x / W * 2 - 1, 1 - y / H * 2, c);
+    if (!rd || rd[1] >= -1e-4) return;
+    const t = (floorY() - c.eye[1]) / rd[1], px = c.eye[0] + rd[0] * t, pz = c.eye[2] + rd[2] * t;
+    const Rm = state.dome.diameter / 2, r = Math.hypot(px, pz) * Rm;
+    state.dome.seatDist = clamp(r, 0, Rm * 0.9);
+    if (r > 0.05) state.dome.seatAng = (Math.atan2(px, -pz) * R2D + 360) % 360;
+    syncUI(); save(); return;
+  }
+  const dv = screenToDir(x, y, c);
+  if (!dv) return;
+  const L = state.layers[drag.i];
+  if (drag.type === 'corner') {
+    const G = geoms[drag.i], s = Math.max(V.dot(dv, G.c), 0.08);
+    L.ox[drag.k] = V.dot(dv, G.r) / s / G.hw - G.sx[drag.k] - G.kx[drag.k];
+    L.oy[drag.k] = V.dot(dv, G.u) / s / G.hh - G.sy[drag.k] - G.ky[drag.k];
+  } else if (L.mapping === 4) {   // Domemaster-Vollbild: um den Zenit drehen
+    const a = Math.atan2(dv[0], -dv[2]) - Math.atan2(drag.g0[0], -drag.g0[2]);
+    L.az = wrapPi((drag.az * D2R) + a) * R2D;
+  } else {
+    const axis = V.cross(drag.g0, dv), sn = V.len(axis);
+    if (sn < 1e-9) return;
+    const k = V.mul(axis, 1 / sn), ang = Math.atan2(sn, V.dot(drag.g0, dv)), ca = Math.cos(ang), sa = Math.sin(ang);
+    const rot = v => V.add(V.add(V.mul(v, ca), V.mul(V.cross(k, v), sa)), V.mul(k, V.dot(k, v) * (1 - ca)));
+    const cc = rot(drag.c0), rr = rot(drag.r0);
+    const el = Math.asin(clamp(cc[1], -1, 1));
+    let az = drag.az * D2R;
+    if (Math.cos(el) > 1e-4) az = Math.atan2(cc[0], -cc[2]);
+    const r0 = [Math.cos(az), 0, Math.sin(az)], u0 = V.cross(r0, cc);
+    L.az = az * R2D; L.el = clamp(el * R2D, -15, 90); L.roll = Math.atan2(V.dot(rr, u0), V.dot(rr, r0)) * R2D;
+  }
+  syncUI(); save();
+});
+const endDrag = () => { drag = null; ov.classList.remove('grabbing'); };
+ov.addEventListener('pointerup', endDrag); ov.addEventListener('pointercancel', endDrag);
+function zoomFov(k) {
+  if (state.view === 'outside') state.cam.outDist = clamp(state.cam.outDist * k, 1.6, 12);
+  else if (state.view === 'inside') {
+    if (state.dome.lens) state.cam.fovFish = clamp(state.cam.fovFish * k, 30, 240);
+    else state.cam.fovRect = clamp(state.cam.fovRect * k, 30, 140);
+  }
+}
+// Trackpad: zwei Finger = Augenhöhe (vertikal) / Sitzwinkel (horizontal), Pinch = Zoom, Alt = Layer skalieren, Cmd = Sitzabstand
+ov.addEventListener('wheel', e => {
+  e.preventDefault();
+  const d = state.dome, Rm = d.diameter / 2;
+  if (e.ctrlKey) { zoomFov(Math.exp(e.deltaY * 0.012)); }            // Pinch (Chrome meldet ihn als ctrl+wheel)
+  else if (e.altKey) {
+    const L = state.layers[state.sel];
+    if (L && L.used && !L.locked) L.size = clamp(L.size * Math.exp(-(e.deltaY || e.deltaX) * 0.0025), 3, 360);
+  } else if (state.view === 'inside') {
+    if (e.metaKey) d.seatDist = clamp(d.seatDist - e.deltaY * 0.02, 0, Rm * 0.9);
+    else {
+      d.eyeH = clamp(d.eyeH - e.deltaY * 0.0025, 0.4, 2.2);
+      d.seatAng = (d.seatAng + e.deltaX * 0.2 + 360) % 360;
+    }
+  } else if (state.view === 'outside') {
+    state.cam.outDist = clamp(state.cam.outDist * Math.exp(e.deltaY * 0.002), 1.6, 12);
+    state.cam.outYaw -= e.deltaX * 0.25;
+  }
+  syncUI(); save();
+}, { passive: false });
+
+function applyPanels() {
+  const app = document.getElementById('app');
+  app.classList.toggle('noL', !uiPrefs.left); app.classList.toggle('noR', !uiPrefs.right);
+  document.getElementById('toggleL').textContent = uiPrefs.left ? '‹' : '›';
+  document.getElementById('toggleR').textContent = uiPrefs.right ? '›' : '‹';
+  savePrefs();
+}
+document.getElementById('toggleL').addEventListener('click', () => { uiPrefs.left = !uiPrefs.left; applyPanels(); });
+document.getElementById('toggleR').addEventListener('click', () => { uiPrefs.right = !uiPrefs.right; applyPanels(); });
+const viewBtns = [...document.querySelectorAll('#views button[data-v]')];
+const uiBtn = document.getElementById('uiToggle');
+function setShowUI(v) { state.showUI = !!v; uiBtn.classList.toggle('on', state.showUI); if (!state.showUI) drag = null; updateHint(); save(); }
+uiBtn.addEventListener('click', () => setShowUI(!state.showUI));
+const gridBtn = document.getElementById('gridToggle'), gridAmt = document.getElementById('gridAmt');
+function syncGridUI() {
+  gridBtn.classList.toggle('on', !!state.dome.gridOn);
+  gridAmt.disabled = !state.dome.gridOn;
+  if (document.activeElement !== gridAmt) gridAmt.value = state.dome.grid;
+}
+gridBtn.addEventListener('click', () => { state.dome.gridOn = !state.dome.gridOn; syncGridUI(); save(); });
+gridAmt.addEventListener('input', () => { state.dome.grid = parseFloat(gridAmt.value); if (!state.dome.gridOn) state.dome.gridOn = true; syncGridUI(); save(); });
+syncs.push(syncGridUI);
+const showBtn = document.getElementById('showToggle');
+function setShowMode(v) { state.show.on = !!v; showBtn.classList.toggle('on', state.show.on); resize(); syncUI(); save(); }
+showBtn.addEventListener('click', () => setShowMode(!state.show.on));
+function setView(v) { state.view = v; viewBtns.forEach(b => b.classList.toggle('on', b.dataset.v === v)); updateHint(); save(); }
+viewBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
+function updateHint() {
+  if (!state.showUI) { document.getElementById('hint').textContent = T('Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild'); return; }
+  document.getElementById('hint').textContent = T(state.view === 'master'
+    ? 'Domemaster (unten = vorne) · Ecken ziehen: Perspektive · Fläche ziehen: verschieben · Alt+Scrollen: skalieren · Tab: Layer · H: Spalten · F: Vollbild'
+    : state.view === 'inside'
+    ? 'Ziehen: umsehen · Zwei Finger ↑↓: Augenhöhe, ←→: um die Kuppel gehen · Cmd+↑↓: Sitzabstand · Pinch/+/−: Zoom · Alt+Scrollen: Layer skalieren · Ecken ziehen: Perspektive'
+    : 'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren');
+}
+addEventListener('keydown', e => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.type !== 'range') return;
+  if (e.metaKey || e.ctrlKey) return;
+  const k = e.key.toLowerCase();
+  if (k === '1') setView('inside'); else if (k === '2') setView('outside'); else if (k === '3') setView('master');
+  else if (k === 'h') { const both = uiPrefs.left || uiPrefs.right; uiPrefs.left = uiPrefs.right = !both; applyPanels(); }
+  else if (k === '[') { uiPrefs.left = !uiPrefs.left; applyPanels(); }
+  else if (k === ']') { uiPrefs.right = !uiPrefs.right; applyPanels(); }
+  else if (k === 'r') setShowUI(!state.showUI);
+  else if (k === 's') setShowMode(!state.show.on);
+  else if (k === 'g') { state.dome.gridOn = !state.dome.gridOn; syncGridUI(); save(); }
+  else if (k === 'd') openDomeWindow();
+  else if (k === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); }
+  else if (k === 'tab') { e.preventDefault(); const o = state.order; if (o.length) selectLayer(o[(o.indexOf(state.sel) + 1) % o.length]); }
+  else if (k === '+' || k === '=') { zoomFov(0.93); syncUI(); save(); }
+  else if (k === '-') { zoomFov(1.075); syncUI(); save(); }
+});
+
+/* ───────────── Start ───────────── */
+function resize() {
+  const st = document.getElementById('stage');
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = st.clientWidth; H = st.clientHeight;
+  const sc = state.show.on ? state.show.scale : 1;   // im Show-Modus kleiner rendern, per CSS aufgezogen
+  ov.width = Math.max(1, Math.round(W * DPR));
+  ov.height = Math.max(1, Math.round(H * DPR));
+  glc.width = Math.max(1, Math.round(W * DPR * sc));
+  glc.height = Math.max(1, Math.round(H * DPR * sc));
+}
+if (!gl) { document.getElementById('nogl').hidden = false; }
+else {
+  try {
+    translateStatic();
+    mainCtx = makeGLContext(glc);
+    if (!mainCtx) throw new Error('WebGL2 nicht verfügbar');
+    useCtx(mainCtx);
+    buildPanel();
+    applyPanels();
+    new ResizeObserver(resize).observe(document.getElementById('stage')); resize();
+    selectLayer(state.sel); setView(state.view); setShowUI(state.showUI); showBtn.classList.toggle('on', state.show.on); resize(); syncUI();
+    refreshDevices();
+    if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
+    state.layers.forEach((L, i) => {
+      if (!L.used) return;
+      if (L.srcType === 'camera') connectCamera(i);
+      else if (L.srcType === 'syphon') { slots[i].type = 'syphon'; slots[i].status = T('Brücke nicht verbunden'); }
+    });
+    renderServers(); bridgeStatus(); bridgeConnect();
+    scheduleFrame();
+    // Watchdog: reißt die rAF-Kette ab (z. B. Fenster war beim Start verdeckt), sofort neu anstoßen
+    setInterval(() => { if (performance.now() - lastTick > 700) { rafPending = false; scheduleFrame(); } }, 400);
+  } catch (e) {
+    document.getElementById('nogl').hidden = false;
+    document.getElementById('nogl').textContent = Tf('Fehler: {0}', e.message);
+    console.error(e);
+  }
+}
+// für Debugging in der Konsole
+window.__dome = { perf, tick, scheduleFrame, bridge, slots, state, domeWin, attachDomeWindow, openDomeWindow, setShowMode, geom, cam, screenToDir, dirToScreen, layerUV, squareToQuad, invertH, dirToPlane, planeToDir };
+})();
+</script>
+</body>
+</html>
