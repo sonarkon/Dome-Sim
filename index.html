@@ -103,6 +103,8 @@ button.btn{cursor:pointer}
 button.btn:hover{border-color:var(--acc)}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
 .btns button.btn{width:auto;flex:1 1 auto}
+.notice{border-left:3px solid var(--acc);background:#8aa4ff14;padding:7px 10px;border-radius:0 6px 6px 0;color:var(--fg)}
+.offline-only>*:not(.notice):not(details){opacity:.4;pointer-events:none}
 .row2sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
 .mini{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim)}
 .chips{display:flex;gap:6px;margin:6px 0}
@@ -222,6 +224,10 @@ const LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const IS_MAC = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '');
+// IS_LOCAL: running from localhost / a file – the only situation where the Syphon bridge can be used.
+// On a hosted page (e.g. GitHub Pages) Syphon is unavailable; ?hosted=1 forces that mode for previews.
+const IS_LOCAL = URLQ.get('hosted') === '1' ? false
+  : (/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(location.hostname) || location.protocol === 'file:');
 // Quelltexte sind deutsch; EN übersetzt sie. T() übersetzt einen Text, Tf() einen Text mit {0}, {1} … Platzhaltern.
 const EN = {
   'Innen': 'Inside', 'Außen': 'Outside', 'Domemaster': 'Domemaster',
@@ -347,6 +353,13 @@ const EN = {
   'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.':
     'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.',
   'Sprache': 'Language', 'Projektname': 'Project name',
+  'Syphon (nur offline)': 'Syphon (offline only)',
+  'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).': 'Syphon is only available offline – run the sim locally (start.command, macOS).',
+  'Syphon braucht die lokale Brücke (nur macOS). Diese Online-Version kann sie nicht nutzen – von GitHub laden und start.command ausführen.':
+    'Syphon needs the local bridge (macOS only). This online version cannot use it – download it from GitHub and run start.command.',
+  'Syphon-Ein-/Ausgabe ist nur in der lokalen Version verfügbar (macOS).': 'Syphon input/output is only available in the local version (macOS).',
+  'NUR OFFLINE VERFÜGBAR': 'AVAILABLE OFFLINE ONLY', 'Lokal starten (macOS): start.command': 'Run locally (macOS): start.command',
+  'Brücke nicht gestartet': 'Bridge not running', 'start.command ausführen': 'run start.command', 'Warte auf Syphon-Server …': 'Waiting for a Syphon server …',
   'Raster-Beschriftung': 'Grid labels', 'Zellen-IDs (A1 …)': 'Cell IDs (A1 …)', 'Koordinaten (Azimut/Höhe)': 'Coordinates (azimuth/elevation)',
   'Werkzeuge': 'Tools',
   'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)': 'Show grid in the domemaster window (strength and resolution as in the view)',
@@ -442,6 +455,11 @@ function applyDemo(kind) {
   Object.assign(state.cam, { yaw: -8, pitch: 38, fovRect: 112 });
   state.view = kind === 'popup' ? 'master' : 'inside';
   if (kind === 'popup') { state.showUI = false; state.dome.grid = 0.3; }
+  if (kind === 'syphon') {   // single Syphon layer without a source: shows the placeholder
+    set(0, { name: 'Syphon input', srcType: 'syphon', mapping: 0, az: 0, el: 38, size: 72, opacity: 1 });
+    set(1, { used: false }); set(2, { used: false });
+    state.order.length = 0; state.order.push(0); state.sel = 0; state.dome.gridLabels = 0;
+  }
   if (URLQ.get('labels') !== null) state.dome.gridLabels = Math.max(0, Math.min(2, +URLQ.get('labels') || 0));
 }
 if (DEMO) applyDemo(DEMO);
@@ -927,7 +945,8 @@ function bridgeSend(o) { if (bridge.ws && bridge.ws.readyState === 1) bridge.ws.
 function bridgeStatus() {
   if (bridge.statusEl) bridge.statusEl.textContent = bridge.ok
     ? Tf('Brücke verbunden · {0} Syphon-Server gefunden', bridge.servers.length)
-    : T(IS_MAC ? 'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)'
+    : T(!IS_LOCAL ? 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).'
+      : IS_MAC ? 'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)'
                : 'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.');
   if (bridge.outEl) {
     const act = ['master', 'view'].filter(k => bridge.out[k]).map(k => '„' + state.out[k].name + '“');
@@ -956,7 +975,7 @@ function connectSyphon(i) {
   const s = slots[i], L = state.layers[i];
   stopSlot(s);
   s.type = 'syphon'; s.name = 'Syphon'; s.w = 1280; s.h = 720;
-  s.status = T(bridge.ok ? 'Server wählen …' : 'Brücke nicht verbunden');
+  s.status = T(!IS_LOCAL ? 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).' : bridge.ok ? 'Server wählen …' : 'Brücke nicht verbunden');
   L.srcType = 'syphon';
   if (bridge.ok) { bridgeSend({ cmd: 'list' }); ensureSub(i, true); }
   syncUI(); save();
@@ -1018,6 +1037,29 @@ let devices = [];
 async function refreshDevices() {
   try { devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch (e) { devices = []; }
   renderDevices();
+}
+// ───── Syphon placeholder (shown while a Syphon layer has no frame) ─────
+function syphonPlaceholderKey() { return !IS_LOCAL ? 'hosted' : bridge.ok ? 'waiting' : 'nobridge'; }
+function drawSyphonPlaceholder(s, key) {
+  if (s.canvas.width !== 1280 || s.canvas.height !== 720) { s.canvas.width = 1280; s.canvas.height = 720; }
+  const c = s.ctx, w = 1280, h2 = 720;
+  c.fillStyle = '#101216'; c.fillRect(0, 0, w, h2);
+  c.save(); c.beginPath(); c.rect(0, 0, w, h2); c.clip();
+  c.strokeStyle = 'rgba(255,255,255,.05)'; c.lineWidth = 18;                // diagonal hatching
+  for (let x = -h2; x < w + h2; x += 56) { c.beginPath(); c.moveTo(x, h2); c.lineTo(x + h2, 0); c.stroke(); }
+  c.restore();
+  c.strokeStyle = s.color; c.lineWidth = 8; c.setLineDash([26, 16]); c.strokeRect(24, 24, w - 48, h2 - 48); c.setLineDash([]);
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = s.color; c.font = 'bold 200px -apple-system, Helvetica, Arial'; c.fillText('SYPHON', w / 2, 230);
+  c.fillStyle = '#e7e9ee'; c.font = 'bold 56px -apple-system, Helvetica, Arial';
+  const lines = key === 'hosted' ? [T('NUR OFFLINE VERFÜGBAR'), T('Lokal starten (macOS): start.command'), 'github.com/sonarkon/Dome-Sim']
+    : key === 'nobridge' ? [T('Brücke nicht gestartet'), T('start.command ausführen')]
+    : [T('Warte auf Syphon-Server …')];
+  lines.forEach((ln, i) => {
+    c.font = (i === 0 ? 'bold 62px' : '40px') + ' -apple-system, Helvetica, Arial';
+    c.fillStyle = i === 0 ? '#e7e9ee' : '#9aa3b5';
+    c.fillText(ln, w / 2, 400 + i * 78);
+  });
 }
 function drawTest(s, t) {
   const kind = state.layers[s.i].testKind, dims = [[1280, 720], [2048, 1024], [1024, 1024]][kind] || [1280, 720];
@@ -1369,7 +1411,7 @@ function buildLayer(i) {
 
   body.append(h('h4', null, 'Quelle'));
   const srcSel = mkSelect(body, 'Typ', L, 'srcType', [
-    ['test', 'Testbild'], ['syphon', 'Syphon (über Brücke)'], ['camera', 'Kamera / Virtual Cam'], ['screen', 'Fenster / Bildschirm'], ['file', 'Video- oder Bilddatei'],
+    ['test', 'Testbild'], ['syphon', IS_LOCAL ? 'Syphon (über Brücke)' : 'Syphon (nur offline)'], ['camera', 'Kamera / Virtual Cam'], ['screen', 'Fenster / Bildschirm'], ['file', 'Video- oder Bilddatei'],
   ], () => {
     if (L.srcType === 'test') useTest(i);
     else if (L.srcType === 'syphon') connectSyphon(i);
@@ -1390,6 +1432,8 @@ function buildLayer(i) {
   serverSels[i] = sySel;
   const syRes = mkSelect(body, 'Übertragung', L, 'syphonRes', [[960, '960 px breit'], [1280, '1280 px breit'], [1920, '1920 px breit'], [2560, '2560 px breit'], [0, 'Original']], () => ensureSub(i, true));
   const syBtn = mkBtns(body, [['Server-Liste aktualisieren', () => bridgeSend({ cmd: 'list' })]]);
+  const syNote = h('div', 'status notice', 'Syphon braucht die lokale Brücke (nur macOS). Diese Online-Version kann sie nicht nutzen – von GitHub laden und start.command ausführen.');
+  body.append(syNote);
   const devRow = h('div', 'row two'), devSel = h('select');
   devRow.append(h('label', null, 'Gerät'), devSel); body.append(devRow);
   devSel.addEventListener('change', () => { L.deviceId = devSel.value; connectCamera(i); });
@@ -1430,9 +1474,10 @@ function buildLayer(i) {
   syncs.push(updTransport);
   syncs.push(() => {
     tk.row.classList.toggle('hide', L.srcType !== 'test');
-    syRow.classList.toggle('hide', L.srcType !== 'syphon');
-    syRes.row.classList.toggle('hide', L.srcType !== 'syphon');
-    syBtn.classList.toggle('hide', L.srcType !== 'syphon');
+    syRow.classList.toggle('hide', L.srcType !== 'syphon' || !IS_LOCAL);
+    syRes.row.classList.toggle('hide', L.srcType !== 'syphon' || !IS_LOCAL);
+    syBtn.classList.toggle('hide', L.srcType !== 'syphon' || !IS_LOCAL);
+    syNote.classList.toggle('hide', L.srcType !== 'syphon' || IS_LOCAL);
     devRow.classList.toggle('hide', L.srcType !== 'camera');
     camBtns.classList.toggle('hide', L.srcType !== 'camera');
     scrBtns.classList.toggle('hide', L.srcType !== 'screen');
@@ -1693,6 +1738,10 @@ function buildPanel() {
   const det = h('details');
   det.innerHTML = HELP_HTML[LANG];
   sb.append(det);
+  if (!IS_LOCAL) {   // hosted page: Syphon controls are shown but disabled, with a clear notice
+    sb.classList.add('offline-only');
+    sb.prepend(h('div', 'status notice', 'Syphon-Ein-/Ausgabe ist nur in der lokalen Version verfügbar (macOS).'));
+  }
 
   const mb = mkSection(panelR, 'Show-Modus', { collapsed: true });
   mkCheck(mb, 'Show-Modus (nur die Vorschau drosseln)', state.show, 'on', () => { showBtn.classList.toggle('on', state.show.on); resize(); });
@@ -1939,7 +1988,12 @@ function uploadTextures(c, t, isMain) {
       if (isMain) {
         if (s.pending) { if (s.bitmap) s.bitmap.close(); s.bitmap = s.pending; s.pending = null; s.dirty = true; }
         if (s.bitmap && s.dirty) { src = s.bitmap; s.dirty = false; }
-      } else if (s.bitmap && c.lastBitmap[id] !== s.bitmap) { src = s.bitmap; c.lastBitmap[id] = s.bitmap; }
+        else if (!s.bitmap) {   // no frame (yet): explanatory placeholder, redrawn only when its state changes
+          const key = syphonPlaceholderKey();
+          if (s.phKey !== key) { drawSyphonPlaceholder(s, key); s.phKey = key; src = s.canvas; }
+        }
+      } else if (s.bitmap) { if (c.lastBitmap[id] !== s.bitmap) { src = s.bitmap; c.lastBitmap[id] = s.bitmap; } }
+      else if (s.phKey && c.lastBitmap[id] !== s.phKey) { src = s.canvas; c.lastBitmap[id] = s.phKey; }
     }
     else if (s.type === 'image') {
       if (isMain) { if (s.img && s.dirty) { src = s.img; s.dirty = false; } }
@@ -2274,9 +2328,9 @@ else {
     state.layers.forEach((L, i) => {
       if (!L.used) return;
       if (L.srcType === 'camera') connectCamera(i);
-      else if (L.srcType === 'syphon') { slots[i].type = 'syphon'; slots[i].status = T('Brücke nicht verbunden'); }
+      else if (L.srcType === 'syphon') { slots[i].type = 'syphon'; slots[i].status = T(IS_LOCAL ? 'Brücke nicht verbunden' : 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).'); }
     });
-    renderServers(); bridgeStatus(); bridgeConnect();
+    renderServers(); bridgeStatus(); if (IS_LOCAL) bridgeConnect();   // hosted pages never touch localhost
     scheduleFrame();
     // Watchdog: reißt die rAF-Kette ab (z. B. Fenster war beim Start verdeckt), sofort neu anstoßen
     setInterval(() => { if (performance.now() - lastTick > 700) { rafPending = false; scheduleFrame(); } }, 400);
