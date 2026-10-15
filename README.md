@@ -43,6 +43,16 @@ Domemaster orientation follows the [IMERSA guidelines](https://imersa.org/guidel
 
 Without the bridge everything except Syphon in/out works on every platform: camera / virtual cam (e.g. OBS Virtual Camera, also useful with Spout on Windows), window / screen capture, video files and the domemaster window.
 
+## Built with
+
+No frameworks, no npm, no build step – the whole project is plain files you can read and edit.
+
+| Part | Language | What it uses |
+|---|---|---|
+| **Simulator** – `index.html` (single file: HTML + CSS + JavaScript) | JavaScript (ES2020), GLSL ES 3.00 | Browser APIs only: **WebGL2** (dome raycasting, layers, blending and warping run in a fragment shader), Canvas 2D (overlays, test patterns), `getUserMedia` / `getDisplayMedia` (camera, window / screen), `WebSocket` (bridge), `localStorage` (state). No third-party libraries. |
+| **Syphon bridge** – `bridge/syphon-bridge.m` | Objective-C (macOS) | Apple system frameworks (Foundation, Metal, CoreImage, ImageIO, CommonCrypto) plus **Syphon.framework**, loaded at runtime. Its small HTTP/WebSocket server is hand-written on BSD sockets – no extra dependencies. Compiled with `clang` from the Xcode Command Line Tools (`bridge/build.sh`). |
+| **Launchers** – `start.command`, `start.sh`, `start.bat` | Bash / batch | `python3 -m http.server` serves the folder when the bridge is not used – Python 3 is the only runtime dependency, and only for this static server. |
+
 ## Quick start
 
 ```bash
@@ -102,4 +112,5 @@ Nothing from Syphon is redistributed here. The bridge listens on `127.0.0.1` onl
 - Der **Simulator** läuft in jedem aktuellen Browser auf **macOS, Windows und Linux**.
 - Die **Syphon-Brücke** (`bridge/`) gibt es nur für **macOS**. Ohne Brücke funktionieren Kamera/Virtual Cam, Fenster-Aufnahme, Videodatei und das Domemaster-Fenster überall.
 - Start mit Syphon: `./bridge/start.command`, ohne Syphon: `python3 -m http.server 8765`.
+- **Technik:** der Simulator ist reines HTML/CSS/JavaScript mit WebGL2 (keine Bibliotheken, kein Build); die Brücke ist Objective-C mit Syphon.framework; Python 3 wird nur als einfacher lokaler Webserver verwendet.
 - Die Oberfläche ist zweisprachig (Standard Englisch, DE/EN-Umschalter oben links).

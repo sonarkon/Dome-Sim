@@ -4,7 +4,7 @@
   Created by Sonarkon – https://github.com/sonarkon/Dome-Sim – MIT License
   Syphon © the Syphon contributors (BSD 2-clause) – used via the optional macOS bridge in ./bridge
 -->
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="author" content="Sonarkon">
@@ -200,7 +200,7 @@ details p{padding:0}
 (() => {
 'use strict';
 
-/* ───────────── Helfer ───────────── */
+/* ───────────── Helpers ───────────── */
 const D2R = Math.PI / 180, R2D = 180 / Math.PI, TAU = Math.PI * 2;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const V = {
@@ -216,7 +216,7 @@ const wrapPi = a => a - TAU * Math.floor((a + Math.PI) / TAU);
 /* ───────────── Sprache / Language (DE · EN) ───────────── */
 const LANG_KEY = 'hopedomesim.lang';
 const URLQ = new URLSearchParams(location.search);
-const DEMO = URLQ.get('demo');   // 'inside' | 'popup' – feste Szene, z. B. für README-Screenshots
+const DEMO = URLQ.get('demo');   // 'inside' | 'popup' | 'syphon' – fixed scene, e.g. for README screenshots
 const LANG = (() => {
   if (URLQ.get('lang') === 'de' || URLQ.get('lang') === 'en') return URLQ.get('lang');
   try { const v = localStorage.getItem(LANG_KEY); if (v === 'de' || v === 'en') return v; } catch (e) {}
@@ -291,7 +291,7 @@ const DE = {
   'Collapse / expand layers ([)': 'Ebenen ein-/ausklappen ([)', 'Collapse / expand layers': 'Ebenen ein-/ausklappen',
   'Collapse / expand output & view (])': 'Ausgabe & Ansicht ein-/ausklappen (])', 'Collapse / expand output': 'Ausgabe ein-/ausklappen',
   'WebGL2 is not available in this browser.': 'WebGL2 ist in diesem Browser nicht verfügbar.',
-  // Status / Meldungen
+  // Status / messages
   'Capture ended – restart with “Choose window / screen”': 'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten',
   'Window capture is not supported by this browser (getDisplayMedia). Please use Chrome or Safari.':
     'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.',
@@ -310,7 +310,7 @@ const DE = {
   '  ·  Reference: 4K master ≈ 23 px/°, 2K ≈ 11 px/°': '  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°',
   'Syphon server not found': 'Syphon-Server nicht gefunden', 'Client could not be created': 'Client konnte nicht erstellt werden',
   'Syphon server could not be created': 'Syphon-Server konnte nicht erstellt werden',
-  // Overlay / HUD / Hinweise
+  // Overlay / HUD / hints
   'Eye height ': 'Augenhöhe ', 'offset to center': 'Versatz zur Mitte', 'Seat': 'Sitz', 'eye': 'Auge', 'drag': 'ziehen',
   ' · show mode': ' · Show-Modus', 'Syphon output': 'Syphon-Ausgabe', 'ms/frame': 'ms/Bild',
   'Domemaster (bottom = front) · drag corners: perspective · drag surface: move · Alt+scroll: scale · Tab: layer · H: columns · F: fullscreen':
@@ -321,13 +321,13 @@ const DE = {
     'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren',
   'Controls hidden · drag: look around · R: show frames again · H: columns · F: fullscreen':
     'Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild',
-  // Testbilder
+  // Test patterns
   '↖ TOP LEFT': '↖ OBEN LINKS', 'TOP RIGHT ↗': 'OBEN RECHTS ↗', 'BOTTOM LEFT': 'UNTEN LINKS', 'BOTTOM RIGHT': 'UNTEN RECHTS',
   'FRONT': 'VORNE', 'BACK': 'HINTEN', 'LEFT': 'LINKS', 'RIGHT': 'RECHTS',
   'FRONT (azimuth 0°) – horizon = center line': 'VORNE (Azimut 0°) – Horizont = Mittellinie',
   'ZENITH ↑ (top edge)': 'ZENIT ↑ (oberer Rand)', 'BACK (±180°)': 'HINTEN (±180°)',
   'Edge = horizon 0°': 'Rand = Horizont 0°', 'Zenith 90°': 'Zenit 90°',
-  // Vorlagen mit Platzhaltern
+  // Templates with placeholders
   'Camera error: {0}': 'Kamera-Fehler: {0}',
   'Window capture failed: {0}{1}. Try again with “Choose window / screen”.': 'Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.',
   'Bridge connected · {0} Syphon servers found': 'Brücke verbunden · {0} Syphon-Server gefunden',
@@ -371,7 +371,7 @@ const DE = {
 function T(s) { return (LANG === 'de' && s != null && DE[s] !== undefined) ? DE[s] : s; }
 function Tf(key, ...args) { return T(key).replace(/\{(\d+)\}/g, (_, n) => args[+n]); }
 const BRIDGE_ERR = { server_not_found: 'Syphon server not found', client_failed: 'Client could not be created', server_create_failed: 'Syphon server could not be created' };
-// statische HTML-Texte (Ansichtsleiste, Tooltips) einmalig übersetzen
+// Translate the static HTML texts (view bar, tooltips) once at start-up
 function translateStatic() {
   document.documentElement.style.setProperty('--t-locked', JSON.stringify(' · ' + T('locked')));
   if (LANG !== 'de') return;
@@ -383,7 +383,7 @@ function translateStatic() {
 }
 function h(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = T(text); return e; }
 
-/* ───────────── Zustand ───────────── */
+/* ───────────── State ───────────── */
 const KEY = 'domesim.v1';
 const MAXL = 8;
 const LABELS = 'ABCDEFGH';
@@ -395,26 +395,26 @@ const defLayer = i => ({
   syphonUUID: '', syphonApp: '', syphonName: '', syphonRes: 1280,
   mapping: 0, az: i === 0 ? -24 : i === 1 ? 28 : ((i * 67) % 200) - 100, el: i === 0 ? 40 : i === 1 ? 36 : 28 + (i * 9) % 30, roll: 0, size: i === 0 ? 62 : i === 1 ? 42 : 40,
   aspect: 16 / 9, autoAspect: true,
-  ox: [0, 0, 0, 0], oy: [0, 0, 0, 0],           // Eckpunkt-Offsets (BL, BR, TR, TL), relativ zur halben Größe
-  opacity: 1, blend: 0, feather: 0, fCurve: 0.5, keyH: 0, keyV: 0, feSplit: false, fe: [0, 0, 0, 0],   // fe: links, rechts, oben, unten
-  extend: 0, extInset: 0.01,   // extend: 0 aus, 1 Rand-Pixel strecken, 2 Randfarbe füllen
-  crop: [0, 0, 1, 1],                           // x0, y0(oben), x1, y1(unten)
+  ox: [0, 0, 0, 0], oy: [0, 0, 0, 0],           // corner offsets (BL, BR, TR, TL), relative to half the size
+  opacity: 1, blend: 0, feather: 0, fCurve: 0.5, keyH: 0, keyV: 0, feSplit: false, fe: [0, 0, 0, 0],   // fe: left, right, top, bottom
+  extend: 0, extInset: 0.01,   // extend: 0 off, 1 stretch edge pixels, 2 fill with edge colour
+  crop: [0, 0, 1, 1],                           // x0, y0 (top), x1, y1 (bottom)
   flipX: false, flipY: false,
 });
 const defState = () => ({
-  project: '',   // Projektname (Anzeige, Preset-Dateiname)
+  project: '',   // project name (shown in the header, used as preset file name)
   view: 'inside',
   dome: { diameter: 12, eyeH: 1.2, spring: 1.0, seatDist: 0, seatAng: 180, lens: 0, ambient: 0.07, grid: 0.35, gridOn: true, gridRes: 1, gridLabels: 0 },
   cam: { yaw: 0, pitch: 38, fovRect: 100, fovFish: 180, outYaw: -28, outPitch: 18, outDist: 3.4, outFov: 32 },
   layers: Array.from({ length: MAXL }, (_, i) => defLayer(i)),
-  order: [0, 1],   // Zeichenreihenfolge, unten → oben (Layer-IDs)
+  order: [0, 1],   // draw order, bottom → top (layer ids)
   out: { fps: 30, flip: false,
          master: { on: false, name: 'HOPE Dome Sim Domemaster', size: 1024, grid: false },
          view: { on: false, name: 'HOPE Dome Sim Ansicht', size: 1280 } },
   sel: 0,
-  showUI: true,   // Rahmen, Griffe und Labels im Viewport
+  showUI: true,   // frames, handles and labels in the viewport
   show: { on: false, fps: 15, scale: 0.5 },
-  win: { fps: 60, max: 4096, grid: false, tools: false },   // separates Domemaster-Fenster   // Show-Modus: lokale Anzeige drosseln, Ausgabe bleibt voll
+  win: { fps: 60, max: 4096, grid: false, tools: false },   // separate domemaster window
 });
 const state = defState();
 function deepAssign(t, s) {
@@ -429,7 +429,7 @@ function deepAssign(t, s) {
 if (!DEMO) { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) deepAssign(state, s); } catch (e) {} }
 state.layers.forEach(L => { if (L.srcType !== 'camera' && L.srcType !== 'syphon') L.srcType = 'test'; });
 state.out.master.on = false; state.out.view.on = false;
-if (state.win.fps === 30 && state.win.max === 2048) { state.win.fps = 60; state.win.max = 4096; }   // alte Voreinstellung (Rücklese-Variante)
+if (state.win.fps === 30 && state.win.max === 2048) { state.win.fps = 60; state.win.max = 4096; }   // old default (read-back variant)
 if (state.out.master.name === 'Dome Sim Domemaster') state.out.master.name = 'HOPE Dome Sim Domemaster';
 if (state.out.view.name === 'Dome Sim Ansicht') state.out.view.name = 'HOPE Dome Sim Ansicht';
 function sanitizeOrder() {
@@ -439,7 +439,7 @@ function sanitizeOrder() {
   state.order.length = 0; o.forEach(x => state.order.push(x));
   if (!(state.layers[state.sel] && state.layers[state.sel].used)) state.sel = o.length ? o[o.length - 1] : 0;
 }
-// Demo-Szene (nur mit ?demo=…): zeigt mehrere Layer, ohne etwas zu speichern
+// Demo scene (only with ?demo=…): shows several layers without saving anything
 function applyDemo(kind) {
   const L = state.layers, set = (i, o) => Object.assign(L[i], o);
   state.project = 'Planetarium demo';
@@ -463,10 +463,11 @@ sanitizeOrder();
 let saveT = 0;
 function save() { if (DEMO) return; clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }, 250); }
 
-/* ───────────── Geometrie ─────────────
-   Ein Layer ist ein Viereck auf der Kuppel. Die Ecken liegen in einer Tangentialebene um das Layer-Zentrum
-   (az/el/roll). Das "Mapping" bestimmt, in welcher Ebene der Inhalt zwischen den Ecken interpoliert wird:
-   0 = Tangentialebene (gnomonisch, wirkt wie ein flacher Screen), 1 = Domemaster-Ebene, 2 = Azimut/Elevation. */
+/* ───────────── Geometry ─────────────
+   A layer is a quad on the dome. Its corners lie in a tangent plane around the layer centre (az/el/roll).
+   The "mapping" decides in which plane the content is interpolated between the corners:
+   0 = tangent plane (gnomonic, behaves like a flat screen), 1 = domemaster plane, 2 = azimuth/elevation,
+   3 = panorama band, 4 = full domemaster. */
 function frameOf(az, el, roll) {
   const c = [Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az)];
   const r0 = [Math.cos(az), 0, Math.sin(az)];
@@ -482,7 +483,7 @@ function dirToPlane(mode, d, G) {
   if (mode === 0) { const s = Math.max(V.dot(d, G.c), 0.02); return [V.dot(d, G.r) / s, V.dot(d, G.u) / s]; }
   if (mode === 1) {
     const y = clamp(d[1], -1, 1), sn = Math.max(Math.sqrt(1 - y*y), 1e-5), k = Math.acos(y) / (Math.PI / 2) / sn;
-    return [d[0] * k, d[2] * k];                  // Domemaster: vorne = unten, rechts = +x
+    return [d[0] * k, d[2] * k];                  // domemaster: front = bottom, right = +x
   }
   return [wrapPi(Math.atan2(d[0], -d[2]) - G.azc), Math.asin(clamp(d[1], -1, 1))];
 }
@@ -495,7 +496,7 @@ function planeToDir(mode, p, G) {
   const az = G.azc + p[0], el = p[1];
   return [Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az)];
 }
-// Einheitsquadrat (0,0)(1,0)(1,1)(0,1) → Viereck P0..P3 (Heckbert). Rückgabe row-major [a b c d e f g h 1]
+// Unit square (0,0)(1,0)(1,1)(0,1) → quad P0..P3 (Heckbert). Returns row-major [a b c d e f g h 1]
 function squareToQuad(P) {
   const [x0, y0] = P[0], [x1, y1] = P[1], [x2, y2] = P[2], [x3, y3] = P[3];
   const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3;
@@ -510,7 +511,7 @@ function squareToQuad(P) {
   const m = [x1 - x0 + g * x1, x3 - x0 + hh * x3, x0, y1 - y0 + g * y1, y3 - y0 + hh * y3, y0, g, hh, 1];
   return m.every(Number.isFinite) ? m : null;
 }
-// Adjungierte (Plane → UV), Vorzeichen so normiert, dass q.z im Zentrum > 0
+// Adjugate (plane → UV), sign normalised so that q.z > 0 at the centre
 function invertH(m) {
   const [a, b, c, d, e, f, g, hh] = m;
   const adj = [
@@ -528,13 +529,13 @@ function geom(L) {
   const az = L.az * D2R, f = frameOf(az, L.el * D2R, L.roll * D2R);
   const hw = Math.tan(clamp(L.size, 1, 170) * D2R / 2), hh = hw / L.aspect;
   const G = { c: f.c, r: f.r, u: f.u, azc: az, hw, hh, sx: [-1, 1, 1, -1], sy: [-1, -1, 1, 1], dirs: [], pano: 0 };
-  if (L.mapping >= 3) {   // Panorama (3) / Domemaster-Vollbild (4): analytisches Mapping, keine Ecken
+  if (L.mapping >= 3) {   // panorama (3) / full domemaster (4): analytic mapping, no corners
     const w = L.size * D2R;
     G.pano = L.mapping; G.ok = true; G.Hinv = null; G.M = null;
     G.pan = L.mapping === 3 ? [az, L.el * D2R, w, w / L.aspect] : [az, 0, 180 / clamp(L.size, 5, 360), 0];
     return G;
   }
-  // Trapezkorrektur: keyV > 0 = oben schmaler, keyH > 0 = rechts niedriger (addiert sich zu den freien Eckpunkt-Offsets)
+  // Keystone: keyV > 0 = narrower at the top, keyH > 0 = lower on the right (added to the free corner offsets)
   const kv = clamp(L.keyV, -0.95, 0.95) / 2, kh = clamp(L.keyH, -0.95, 0.95) / 2;
   G.kx = []; G.ky = [];
   for (let i = 0; i < 4; i++) {
@@ -566,7 +567,7 @@ function uvToDir(G, L, u, v) {
   return planeToDir(L.mapping, [(m[0]*u + m[1]*v + m[2]) / w, (m[3]*u + m[4]*v + m[5]) / w], G);
 }
 
-/* ───────────── Kamera / Projektion ───────────── */
+/* ───────────── Camera / projection ───────────── */
 let W = 1, H = 1, DPR = 1;
 function seatPos() {
   const d = state.dome, R = d.diameter / 2, sa = d.seatAng * D2R, sd = Math.min(d.seatDist / R, 0.95);
@@ -638,7 +639,7 @@ precision highp float;
 out vec4 outc;
 const float PI=3.14159265359;
 uniform vec2 uRes;
-uniform int uView;              // 0 innen, 1 außen, 2 domemaster
+uniform int uView;              // 0 inside, 1 outside, 2 domemaster
 uniform vec3 uEye, uRight, uUp, uFwd, uSeat;
 uniform float uTanH, uFishH;
 uniform int uLens;
@@ -680,23 +681,23 @@ vec4 layerCol(int i, sampler2D tex, vec3 d){
     uv=q.xy/max(q.z,1e-9);
   }
   vec2 fw=fwidth(uv);
-  // Randweiche: je Achse glatt (kein Diamant/Pyramiden-Effekt), in der kürzeren Bildseite gemessen
+  // Edge feather: smooth per axis (no diamond/pyramid effect), measured against the shorter image side
   float asp=max(uAsp[i],1e-3);
   vec2 sc=asp>=1. ? vec2(1./asp,1.) : vec2(1.,asp);
-  vec4 fv=uFeath[i];                                   // links, rechts, oben, unten
+  vec4 fv=uFeath[i];                                   // left, right, top, bottom
   float eL=max(max(fv.x*sc.x,fw.x),1e-5), eR=max(max(fv.y*sc.x,fw.x),1e-5);
   float eT=max(max(fv.z*sc.y,fw.y),1e-5), eB=max(max(fv.w*sc.y,fw.y),1e-5);
   float a=pow(max(smoothstep(0.,eL,uv.x)*smoothstep(0.,eR,1.-uv.x)*smoothstep(0.,eT,1.-uv.y)*smoothstep(0.,eB,uv.y),0.),uFGam[i])*ok;
   vec2 t=uv;
   if(uFlip[i].x>0.5) t.x=1.-t.x;
   if(uFlip[i].y>0.5) t.y=1.-t.y;
-  float ins=uExt[i]>0 ? uInset[i] : 0.;     // Rand-Einzug: schwarze Randlinien der Quelle ignorieren
+  float ins=uExt[i]>0 ? uInset[i] : 0.;     // edge inset: ignore black border lines of the source
   t=clamp(t,vec2(ins),vec2(1.-ins));
   vec4 cr=uCrop[i];
   vec2 st=vec2(mix(cr.x,cr.z,t.x), mix(1.-cr.w,1.-cr.y,t.y));
   vec3 c=texture(tex,st).rgb;
-  if(uExt[i]==1){ a=1.; }                          // Rand-Pixel strecken: füllt die ganze Kuppel
-  else if(uExt[i]==2){ c=mix(uFill[i],c,a); a=1.; } // Randfarbe füllen (Randweiche = weicher Übergang)
+  if(uExt[i]==1){ a=1.; }                          // stretch edge pixels: fills the whole dome
+  else if(uExt[i]==2){ c=mix(uFill[i],c,a); a=1.; } // fill with edge colour (feather = soft transition)
   return vec4(c, a*uOpacity[i]);
 }
 vec3 blendL(vec3 acc, vec4 L, int mode){
@@ -709,8 +710,8 @@ vec3 blendL(vec3 acc, vec4 L, int mode){
 vec2 gridLines(vec3 d){
   float azr=atan(d.x,-d.z), elr=asin(clamp(d.y,-1.,1.));
   float az=azr*180./PI, el=elr*180./PI, ce=max(cos(elr),0.);
-  float ga=abs(fract(az/uGridA+.5)-.5)*uGridA*ce;     // Azimut-Linien alle uGridA°
-  float ge=abs(fract(el/uGridE+.5)-.5)*uGridE;        // Höhenlinien alle uGridE°
+  float ga=abs(fract(az/uGridA+.5)-.5)*uGridA*ce;     // azimuth lines every uGridA°
+  float ge=abs(fract(el/uGridE+.5)-.5)*uGridE;        // elevation lines every uGridE°
   float gf=abs(az)*ce;
   float la=1.-smoothstep(0.,max(fwidth(ga),1e-4)*1.5,ga);
   la*=smoothstep(.12,.4,ce);
@@ -746,7 +747,7 @@ void main(){
     float hasS=step(0.,disc);
     vec3 Pf=uEye+rd*t2;
     float domeOk=hasS*step(0.,t2)*step(-0.0005,Pf.y);
-    // Rundwand zwischen Boden und Kuppelrand (Zylinder, Radius 1)
+    // Circular wall between floor and dome rim (cylinder, radius 1)
     float ca=dot(rd.xz,rd.xz), cb=dot(uEye.xz,rd.xz), cc2=dot(uEye.xz,uEye.xz)-1.;
     float cd=cb*cb-ca*cc2;
     float tc=(-cb+sqrt(max(cd,0.)))/max(ca,1e-6);
@@ -771,7 +772,7 @@ void main(){
   dome=mix(dome,vec3(1.,.55,.2),g.y*uGrid);
   if(uView!=2) dome+=vec3(.35,.38,.45)*(1.-smoothstep(0.,.012,d.y));
   dome+=vec3(.4)*ring;
-  // Boden
+  // Floor
   float rr=length(Pg.xz);
   vec3 fl=vec3(.018,.019,.024)+vec3(.05)*(1.-smoothstep(0.,.012,abs(rr-1.)));
   fl+=vec3(.012)*(1.-smoothstep(0.,.01,abs(fract(rr*5.)-.5)-.49));
@@ -795,7 +796,7 @@ const FSS = FS
   .replace(/\[2\]/g, '[' + MAXL + ']')
   .replace(/  vec4 l0=layerCol\(0,uTex0,d\), l1=layerCol\(1,uTex1,d\);\n  vec3 acc=blendL\(blendL\(vec3\(0\.\),l0,uBlend\[0\]\),l1,uBlend\[1\]\);/,
     '  vec3 acc=vec3(0.);\n' + Array.from({ length: MAXL }, (_, i) => `  acc=blendL(acc,layerCol(${i},uTex${i},d),uBlend[${i}]);`).join('\n'));
-// Erzeugt Programm + Texturen für einen WebGL2-Kontext (Hauptfenster oder Domemaster-Fenster)
+// Creates program + textures for a WebGL2 context (main window or domemaster window)
 function makeGLContext(canvas) {
   const g = canvas.getContext('webgl2', { antialias: false });
   if (!g) return null;
@@ -833,13 +834,13 @@ function makeGLContext(canvas) {
   return { gl: g, U: u, prog: p, tex, dummy, lastBitmap: new Array(MAXL).fill(null) };
 }
 let mainCtx = null;
-// schaltet die globalen gl/U/Texturen auf einen Kontext um (die Render-Funktionen sind kontext-agnostisch)
+// Switches the globals gl/U/textures to a context (the render functions are context-agnostic)
 function useCtx(c) {
   gl = c.gl; U = c.U; prog = c.prog; dummyTex = c.dummy;
   slots.forEach((s, i) => { s.tex = c.tex[i]; });
 }
 
-/* ───────────── Quellen ───────────── */
+/* ───────────── Sources ───────────── */
 const slots = Array.from({ length: MAXL }, (_, i) => {
   const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 720;
   const video = document.createElement('video');
@@ -870,7 +871,7 @@ function useTest(i, status) {
   s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status || 'Test pattern');
   state.layers[i].srcType = 'test';
 }
-// Testbild als Platzhalter, die gewählte Quellenart bleibt stehen (z. B. „Fenster / Bildschirm“), damit man neu verbinden kann
+// Test pattern as a placeholder; the chosen source type stays (e.g. “Window / screen”) so it can be reconnected
 function placeholder(i, status) {
   const s = slots[i]; stopSlot(s);
   s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status);
@@ -921,19 +922,19 @@ function connectFile(i, file) {
   s.name = file.name; s.status = file.name; s.url = URL.createObjectURL(file);
   state.layers[i].srcType = 'file';
   const isImage = (file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif|svg|tiff?)$/i.test(file.name);
-  if (isImage) {            // Foto/Grafik: einmal als Textur hochladen
+  if (isImage) {            // photo/graphic: upload once as a texture
     s.type = 'image'; s.kind = 'image';
     const img = new Image();
     img.onload = () => { s.img = img; s.w = img.naturalWidth; s.h = img.naturalHeight; s.dirty = true; s.status = `${file.name} · ${s.w}×${s.h}`; refreshStatus(); syncUI(); };
     img.onerror = () => { placeholder(i, Tf('Could not load image: {0}', file.name)); syncUI(); };
     img.src = s.url;
-  } else {                  // Video: loopt automatisch, Transport über Play/Pause und Zeitleiste
+  } else {                  // video: loops automatically, transport via play/pause and timeline
     s.type = 'file'; s.kind = 'video';
     s.video.src = s.url; s.video.loop = true; s.video.play().catch(() => {});
   }
   syncUI();
 }
-/* ───── Syphon-Brücke (WebSocket zu ./bridge/syphon-bridge) ───── */
+/* ───── Syphon bridge (WebSocket to ./bridge/syphon-bridge) ───── */
 const bridge = { ws: null, ok: false, servers: [], out: { master: false, view: false }, statusEl: null, outEl: null };
 const OUT_ID = { master: 0, view: 1 };
 function bridgeURL() { return location.protocol === 'http:' && location.port === '8766' ? `ws://${location.host}/ws` : 'ws://localhost:8766/ws'; }
@@ -1064,7 +1065,7 @@ function drawTest(s, t) {
   const c = s.ctx, w = s.canvas.width, hh = s.canvas.height;
   c.textBaseline = 'middle';
   const font = (px, wgt = 'bold') => c.font = `${wgt} ${px}px -apple-system, Helvetica, Arial`;
-  if (kind === 1) {                       // Equirect 360×180: Mitte = vorne, oben = Zenit
+  if (kind === 1) {                       // Equirect 360×180: centre = front, top = zenith
     c.fillStyle = '#16181e'; c.fillRect(0, 0, w, hh);
     c.lineWidth = 1; font(18, '600'); c.textAlign = 'center';
     for (let a = -180; a <= 180; a += 15) {
@@ -1086,45 +1087,45 @@ function drawTest(s, t) {
     const x = ((t * 0.08) % 1) * w; c.globalAlpha = 0.8; c.fillStyle = s.color; c.fillRect(x - 6, 0, 12, hh); c.globalAlpha = 1;
     return;
   }
-  if (kind === 2) {                       // Domemaster (IMERSA): Zenit = Mitte, Rand = Horizont, VORNE = UNTEN, rechts = Publikum rechts
+  if (kind === 2) {                       // Domemaster (IMERSA): zenith = centre, edge = horizon, FRONT = BOTTOM, right = audience right
     const cx = w / 2, cy = hh / 2, R = w / 2 - 2;
     c.fillStyle = '#050608'; c.fillRect(0, 0, w, hh);
     c.fillStyle = '#16181e'; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill();
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    // Beschriftung radial: Oberkante der Schrift zeigt zum Zenit (Bildmitte) = „oben“ für Zuschauer, die dorthin schauen
+    // Labels are radial: the top of the text points to the zenith (image centre) = “up” for viewers looking there
     const radial = (txt, azDeg, r, px, color, wgt) => {
       const a = azDeg * D2R;
       c.save(); c.translate(cx + Math.sin(a) * r, cy + Math.cos(a) * r); c.rotate(-a);
       c.fillStyle = color; font(px, wgt || 'bold'); c.fillText(txt, 0, 0); c.restore();
     };
-    // Höhenringe alle 15° (Beschriftung = Elevation), entlang der Front-Achse neben dem farbigen Strahl
+    // Elevation rings every 15° (label = elevation), along the front axis next to the coloured ray
     for (let z = 15; z < 90; z += 15) {
       const r = z / 90 * R;
       c.strokeStyle = z === 45 ? '#4a5160' : '#2d323d'; c.lineWidth = 1.5;
       c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.stroke();
       radial(`${90 - z}°`, 0, r - 9, 17, '#9aa3b5', '600');
     }
-    // Azimut-Strahlen alle 30°: 0° = vorne = unten, +90° = rechts
+    // Azimuth rays every 30°: 0° = front = bottom, +90° = right
     for (let a = 0; a < 360; a += 30) {
       const sx = Math.sin(a * D2R), sy = Math.cos(a * D2R);
       c.strokeStyle = a === 0 ? s.color : (a === 180 ? '#7d8596' : '#2d323d'); c.lineWidth = a === 0 ? 4 : 1.5;
       c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + sx * R, cy + sy * R); c.stroke();
       if (a && a !== 180) radial(`${a > 180 ? a - 360 : a}°`, a, R - 30, 17, '#9aa3b5', '600');
     }
-    // sichere Zone (90 %) und Horizont-Rand
+    // safe zone (90 %) and horizon edge
     c.setLineDash([14, 10]); c.strokeStyle = '#cfd5e2'; c.lineWidth = 2;
     c.beginPath(); c.arc(cx, cy, R * 0.9, 0, TAU); c.stroke(); c.setLineDash([]);
     c.strokeStyle = s.color; c.lineWidth = 8; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
-    // Himmelsrichtungen (aus Sicht des Publikums, Blick nach vorne = Azimut 0°)
+    // Directions (from the audience's point of view, looking forward = azimuth 0°)
     radial(T('FRONT'), 0, R - 62, 30, s.color);
     radial(T('RIGHT'), 90, R - 62, 24, '#e7e9ee');
     radial(T('BACK'), 180, R - 62, 24, '#e7e9ee');
     radial(T('LEFT'), 270, R - 62, 24, '#e7e9ee');
     radial(T('Edge = horizon 0°'), 180, R - 100, 18, '#9aa3b5', '600');
-    // Zenit
+    // Zenith
     c.fillStyle = s.color; font(170); c.fillText(s.label, cx, cy - 8);
     font(18, '600'); c.fillStyle = '#9aa3b5'; c.fillText(T('Zenith 90°'), cx, cy + 104);
-    // rotierender Zeiger startet vorne (unten) und läuft nach rechts
+    // rotating pointer starts at the front (bottom) and runs to the right
     const a = t * 0.6; c.strokeStyle = s.color; c.globalAlpha = 0.8; c.lineWidth = 10;
     c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * R, cy + Math.cos(a) * R); c.stroke(); c.globalAlpha = 1;
     return;
@@ -1151,7 +1152,7 @@ function drawTest(s, t) {
 
 /* ───────────── UI ───────────── */
 const panelL = document.getElementById('panelL'), panelR = document.getElementById('panelR');
-// Oberflächen-Layout (offen/zu) – bewusst getrennt vom Preset
+// UI layout (open/closed) – deliberately kept separate from the preset
 const PREF_KEY = 'hopedomesim.ui';
 const uiPrefs = (() => { const d = { left: true, right: true, closed: {} }; try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { return d; } })();
 function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(uiPrefs)); } catch (e) {} }
@@ -1166,7 +1167,7 @@ function mkSection(parent, title, opts = {}) {
   apply(); sec.append(head, body); parent.append(sec);
   return body;
 }
-// h4-Überschriften eines Containers in einklappbare Gruppen umwandeln
+// Turn the h4 headings of a container into collapsible groups
 function groupify(container, collapsedTitles = []) {
   const kids = [...container.children];
   let body = null;
@@ -1269,8 +1270,8 @@ function removeLayer(id) {
 }
 const rows = [];
 let listEl = null, listSig = '', addBtn = null;
-// Drag & Drop: die ganze Zeile ist greifbar (außer Buttons/Regler/Auswahl). Erst ab 4 px Bewegung wird gezogen,
-// ein einfacher Klick wählt den Layer weiterhin aus.
+// Drag & drop: the whole row is draggable (except buttons/sliders/selects). Dragging starts after 4 px of movement,
+// a plain click still selects the layer.
 function startRowDrag(e, id, rowEl) {
   if (e.button !== undefined && e.button !== 0) return;
   if (e.target.closest && e.target.closest('button, select, input')) return;
@@ -1282,7 +1283,7 @@ function startRowDrag(e, id, rowEl) {
     if (!dragging) {
       if (Math.abs(ev.clientY - startY) < 4) return;
       dragging = true; rowEl.classList.add('dragging'); document.body.classList.add('dnd');
-      // Geisterbild der Zeile hängt unter dem Mauszeiger
+      // ghost image of the row follows the pointer
       const rc = rowEl.getBoundingClientRect();
       ghost = rowEl.cloneNode(true);
       ghost.classList.remove('dragging', 'sel'); ghost.classList.add('ghost');
@@ -1305,10 +1306,10 @@ function startRowDrag(e, id, rowEl) {
     rowEl.classList.remove('dragging'); document.body.classList.remove('dnd'); clear();
     if (ghost) { ghost.remove(); ghost = null; }
     if (!dragging || target < 0) return;
-    rowEl.dataset.justDragged = '1'; setTimeout(() => delete rowEl.dataset.justDragged, 0);   // folgenden Klick nicht als Auswahl werten
-    const ids = rowsNow().map(r => Number(r.dataset.id));   // Anzeige: oben = vorne
+    rowEl.dataset.justDragged = '1'; setTimeout(() => delete rowEl.dataset.justDragged, 0);   // don't treat the following click as a selection
+    const ids = rowsNow().map(r => Number(r.dataset.id));   // display: top = front
     ids.splice(target, 0, id);
-    const next = ids.reverse();                              // state.order: unten → oben
+    const next = ids.reverse();                              // state.order: bottom → top
     if (next.join(',') !== state.order.join(',')) { state.order.length = 0; next.forEach(x => state.order.push(x)); syncUI(); save(); }
   };
   try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
@@ -1384,7 +1385,7 @@ function autoAspect(i) {
   if (Number.isFinite(a) && a > 0.05 && Math.abs(a - L.aspect) > 1e-4) { L.aspect = a; return true; }
   return false;
 }
-// sinnvolle Startwerte, wenn Mapping oder Testbild-Typ wechseln
+// Sensible defaults when the mapping or test pattern type changes
 function applyDefaultsFor(L) {
   const i = state.layers.indexOf(L);
   if (L.srcType === 'test') { const k = L.testKind; if (L.mapping === 3 && k === 0) L.testKind = 1; if (L.mapping === 4 && k !== 2) L.testKind = 2; }
@@ -1443,7 +1444,7 @@ function buildLayer(i) {
   fin.addEventListener('change', () => connectFile(i, fin.files[0]));
   fileRow.append(h('label', null, 'File'), fin); body.append(fileRow);
   const st = h('div', 'status'); body.append(st); statusEls[i] = st;
-  // Transport für Videodateien: Play/Pause + Zeitleiste (Scrubben), Zeit
+  // Transport for video files: play/pause + timeline (scrubbing) + time
   const trn = h('div', 'transport');
   const ppb = h('button', 'btn pp'); ppb.type = 'button';
   const tl = h('input'); tl.type = 'range'; tl.min = 0; tl.max = 1; tl.step = 0.01; tl.value = 0; tl.title = T('Timeline');
@@ -1483,7 +1484,7 @@ function buildLayer(i) {
 
   body.append(h('h4', null, 'Source crop'));
   const gap = 0.02;
-  // Regler zeigen, wie viel von jeder Seite abgeschnitten wird (0 % = ganzes Bild)
+  // Sliders show how much is cut off each side (0 % = whole image)
   const cp = {
     get l() { return L.crop[0]; }, set l(v) { L.crop[0] = clamp(v, 0, L.crop[2] - gap); },
     get r() { return 1 - L.crop[2]; }, set r(v) { L.crop[2] = clamp(1 - v, L.crop[0] + gap, 1); },
@@ -1497,7 +1498,7 @@ function buildLayer(i) {
     const sl = slots[i], cw = L.crop[2] - L.crop[0], ch = L.crop[3] - L.crop[1];
     cropInfo.textContent = Tf('Region: {0} % × {1} %', Math.round(cw * 100), Math.round(ch * 100)) + (sl.w ? Tf('  ({0} × {1} px)', Math.round(sl.w * cw), Math.round(sl.h * ch)) : '');
   });
-  // Voreinstellungen als Symbole: gefüllt = sichtbarer Teil der Quelle
+  // Presets as icons: filled = visible part of the source
   const presetRow = h('div', 'btns icons');
   const cropIcon = (x, y, w2, h2) => `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="currentColor" opacity=".85"/></svg>`;
   const presets = [
@@ -1620,7 +1621,7 @@ function applyProjectTitle() {
   document.title = (n ? n + ' – ' : '') + 'HOPE Dome Sim';
 }
 function buildPanel() {
-  // ───── links: Ebenen ─────
+  // ───── left: layers ─────
   const brand = h('div', 'brand'); brand.innerHTML = '<b>HOPE</b> Dome Sim';
   const sw = h('span', 'langsw'); sw.title = T('Language');
   ['de', 'en'].forEach(l => {
@@ -1639,10 +1640,10 @@ function buildPanel() {
   const selBody = staticSec('Layer settings');
   for (let i = 0; i < MAXL; i++) { const c = buildLayer(i); selBody.append(c); cards.push(c); }
 
-  // ───── rechts: Ausgabe & Ansicht ─────
+  // ───── right: output & view ─────
   const d = state.dome, cm = state.cam, o = state.out;
 
-  // Preset: feste Leiste ganz oben (nicht einklappbar)
+  // Preset: fixed bar at the very top (not collapsible)
   const pb = h('div', 'presetbar'); pb.append(h('div', 'presetlabel', 'Preset')); panelR.append(pb);
   mkBtns(pb, [
     ['Export', () => {
@@ -1680,7 +1681,7 @@ function buildPanel() {
     ['Seat to center', () => { d.seatDist = 0; syncUI(); save(); }],
   ]);
 
-  // Domemaster-Fenster: immer sichtbar, kompakt (Rate + Auflösung in einer Zeile, Raster/Werkzeuge als Schalter)
+  // Domemaster window: always visible, compact (rate + resolution in one row, grid/tools as toggles)
   const wb = h('div', 'staticsec'); wb.append(h('div', 'seclabel', 'Domemaster window')); panelR.append(wb);
   mkBtns(wb, [['Open domemaster in its own window', openDomeWindow]]);
   const miniSel = (label, obj, key, opts) => {
@@ -1800,7 +1801,7 @@ function setLayerUniforms() {
   gl.uniformMatrix3fv(U.uH, false, mat);
   gl.uniform4fv(U.uCrop, cr); gl.uniform4fv(U.uPan, pan); gl.uniform2fv(U.uFlip, fl);
 }
-// ein Render-Durchgang in die aktuell gebundene Zielfläche
+// One render pass into the currently bound target
 function pass(w, h, o) {
   const c = o.cam;
   gl.viewport(0, 0, w, h);
@@ -1818,7 +1819,7 @@ function pass(w, h, o) {
   gl.uniform1f(U.uGridA, gr[0]); gl.uniform1f(U.uGridE, gr[1]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
-// Rasterauflösung: [Azimut-Schritt°, Höhen-Schritt°]
+// Grid resolution: [azimuth step°, elevation step°]
 const GRID_RES = [[45, 30], [30, 15], [15, 10], [10, 5]];
 const viewIdx = v => v === 'inside' ? 0 : v === 'outside' ? 1 : 2;
 function sendOutput(t) {
@@ -1829,7 +1830,7 @@ function sendOutput(t) {
     if (!oo.on || !bridge.out[key]) continue;
     if (t - lastOut[key] < 1000 / o.fps - 2) continue;
     const w = oo.size, h = key === 'master' ? oo.size : Math.round(oo.size * 9 / 16);
-    if (ws.bufferedAmount > w * h * 4 * 1.5) continue;   // Gegendruck
+    if (ws.bufferedAmount > w * h * 4 * 1.5) continue;   // back-pressure: skip when the socket is backed up
     lastOut[key] = t;
     const f = outFbos[key];
     ensureFbo(f, OUT_ID[key], w, h);
@@ -1850,24 +1851,24 @@ function sendOutput(t) {
 const edgeCv = document.createElement('canvas'); edgeCv.width = 48; edgeCv.height = 27;
 const edgeCtx = edgeCv.getContext('2d', { willReadFrequently: true });
 let frameNo = 0;
-// Render-Schleife: läuft über das Hauptfenster UND das Domemaster-Fenster (damit ein verdecktes Hauptfenster nicht drosselt)
+// Render loop: runs via the main window AND the domemaster window (so an occluded main window doesn't throttle it)
 let lastTick = -1, rafPending = false;
 function tick() {
   const t = performance.now();
   if (Math.abs(t - lastTick) < 4) return;
   lastTick = t;
-  try { render(t); } catch (e) { console.error(e); scheduleFrame(); }   // Schleife darf nie abreißen
+  try { render(t); } catch (e) { console.error(e); scheduleFrame(); }   // the loop must never break
 }
 function scheduleFrame() {
   if (rafPending) return;
   rafPending = true;
   requestAnimationFrame(() => { rafPending = false; tick(); scheduleFrame(); });
 }
-// ───── Separates Domemaster-Fenster (z. B. für den externen Monitor) ─────
-// Eigener WebGL-Kontext im Fenster: kein Rücklesen von der GPU, kein CPU-Kopieren.
+// ───── Separate domemaster window (e.g. for the external monitor) ─────
+// Own WebGL context in the window: no GPU read-back, no CPU copying.
 const domeWin = { w: null, cv: null, c: null, last: 0, statusEl: null, loop: false, frames: 0 };
-// Eigene rAF-Kette im Fenster: unabhängig von Show-Modus und von der Hauptfenster-Schleife.
-// Steht die Hauptschleife (Hauptfenster verdeckt), übernimmt das Fenster sie mit.
+// Own rAF chain in the window: independent of show mode and of the main-window loop.
+// If the main loop stalls (main window occluded), the window drives it as well.
 function domeWindowGone() { domeWin.w = null; domeWin.c = null; domeWin.loop = false; if (domeWin.statusEl) domeWin.statusEl.textContent = T('Window closed'); }
 function popupLoop() {
   const w = domeWin.w;
@@ -1885,7 +1886,7 @@ function attachDomeWindow(w) {
   d.body.innerHTML = '';
   const cv = d.createElement('canvas'); cv.width = cv.height = 1024;
   d.body.appendChild(cv);
-  const ov2 = d.createElement('canvas'); ov2.className = 'ov'; ov2.width = ov2.height = 1024;   // Werkzeuge / Beschriftung
+  const ov2 = d.createElement('canvas'); ov2.className = 'ov'; ov2.width = ov2.height = 1024;   // tools / labels
   d.body.appendChild(ov2);
   const c = makeGLContext(cv);
   if (!c) { w.close(); if (domeWin.statusEl) domeWin.statusEl.textContent = T('WebGL2 not available in the window'); return; }
@@ -1923,7 +1924,7 @@ function drawDomeWindow(t) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     pass(n, n, { cam: { kind: 'master' }, view: 2, base: 0, grid: state.win.grid ? state.dome.grid : 0, ms: 1, bg: 0, ring: 0, flip: 1, bgr: 0 });
   } finally { useCtx(mainCtx); }
-  // Werkzeuge (Rahmen, Griffe, Namen) und Raster-Beschriftung als 2D-Overlay im Fenster
+  // Tools (frames, handles, names) and grid labels as a 2D overlay in the window
   const wantLabels = state.win.grid && state.dome.gridLabels > 0, wantTools = state.win.tools;
   if (wantTools || wantLabels) {
     const o2 = domeWin.ov, x = domeWin.octx;
@@ -1938,7 +1939,7 @@ function drawDomeWindow(t) {
   }
 }
 let lastDisp = 0, drawOverlayWhenDue = null;
-// Median der Randpixel des (zugeschnittenen) Bildes = „Hintergrundfarbe“
+// Median of the border pixels of the (cropped) image = “background colour”
 function updateFill(s, src, L) {
   try {
     const w = src.videoWidth || src.width, h = src.videoHeight || src.height;
@@ -1950,7 +1951,7 @@ function updateFill(s, src, L) {
     for (let x = 0; x < 48; x++) { take(x, 0); take(x, 26); }
     for (let y = 1; y < 26; y++) { take(0, y); take(47, y); }
     for (let k = 0; k < 3; k++) { ch[k].sort((a, b) => a - b); const m = ch[k][ch[k].length >> 1] / 255; s.fill[k] += (m - s.fill[k]) * 0.5; }
-  } catch (e) { /* tainted / nicht bereit */ }
+  } catch (e) { /* tainted / not ready */ }
 }
 const perf = { frames: 0, out: 0, t0: 0, ms: 0, lastT: 0, el: null, outMs: 0, outN: 0 };
 function updateFps(t) {
@@ -1969,7 +1970,7 @@ function updateFps(t) {
   if ((o.master.on && bridge.out.master) || (o.view.on && bridge.out.view)) txt += '\n' + Tf('Syphon output <b>{0}</b> fps · {1} ms/frame', outFps.toFixed(0), outCost.toFixed(1));
   perf.el.innerHTML = txt;
 }
-// Texturen: Layer an Position k (Z-Reihenfolge) → Texture-Unit k. isMain=false: zweiter Kontext (Domemaster-Fenster)
+// Textures: layer at position k (z-order) → texture unit k. isMain=false: second context (domemaster window)
 function uploadTextures(c, t, isMain) {
   for (let k = 0; k < MAXL; k++) {
     const id = state.order[k];
@@ -2001,7 +2002,7 @@ function uploadTextures(c, t, isMain) {
   }
 }
 function render(t) {
-  // Layer-Geometrie + Aspect
+  // Layer geometry + aspect
   for (let i = 0; i < MAXL; i++) {
     const L = state.layers[i];
     if (!L.used) { geoms[i] = null; continue; }
@@ -2014,7 +2015,7 @@ function render(t) {
   frameNo++;
 
   setLayerUniforms();
-  // Show-Modus: lokale Anzeige nur mit show.fps zeichnen, die Syphon-Ausgänge laufen mit ihrer eigenen Rate weiter
+  // Show mode: draw the local view only at show.fps; the Syphon outputs keep running at their own rate
   const sh = state.show;
   const due = !sh.on || t - lastDisp >= 1000 / sh.fps - 2;
   if (due) {
@@ -2032,12 +2033,12 @@ function render(t) {
   scheduleFrame();
 }
 
-// Layer-Rahmen, Mittelpunkt, Namen und Eckgriffe (proj: Richtung → Bildschirmpunkt oder null; scl: Größenfaktor)
+// Layer frames, centre point, names and corner handles (proj: direction → screen point or null; scl: size factor)
 function drawLayerTools(ctx, proj, scl) {
   const order = state.order.filter(i => i !== state.sel).concat(state.order.includes(state.sel) ? [state.sel] : []);
   for (const i of order) {
     const L = state.layers[i], G = geoms[i];
-    if (!L.used || !L.on || L.locked || !G || !G.ok) continue;   // gesperrte Layer: kein Rahmen
+    if (!L.used || !L.on || L.locked || !G || !G.ok) continue;   // locked layers: no frame
     const sel = i === state.sel, col = slots[i].color;
     ctx.lineWidth = (sel ? 2 : 1.25) * scl; ctx.strokeStyle = col; ctx.globalAlpha = sel ? 0.95 : 0.5;
     const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
@@ -2070,10 +2071,10 @@ function drawLayerTools(ctx, proj, scl) {
   }
   ctx.globalAlpha = 1;
 }
-// Spaltenbuchstaben A, B … Z, AA, AB …
+// Column letters A, B … Z, AA, AB …
 function colLabel(i) { let t = ''; i = i | 0; do { t = String.fromCharCode(65 + (i % 26)) + t; i = Math.floor(i / 26) - 1; } while (i >= 0); return t; }
-// Raster-Beschriftung: Modus 1 = Zell-IDs in den Zellmitten (A = erste Spalte rechts von vorne, 1 = unterstes Band),
-// Modus 2 = Koordinaten der Zellmitte (az°/el°). eye ≠ null: Außenansicht, nur die gegenüberliegende Innenseite beschriften.
+// Grid labels: mode 1 = cell ids at the cell centres (A = first column right of front, 1 = lowest band),
+// mode 2 = coordinates of the cell centre (az°/el°). eye ≠ null: outside view, label only the far inner side.
 function drawGridLabels(ctx, proj, scl, eye) {
   const mode = state.dome.gridLabels | 0;
   if (!mode) return;
@@ -2085,23 +2086,23 @@ function drawGridLabels(ctx, proj, scl, eye) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `600 ${fs}px -apple-system, system-ui, sans-serif`;
   ctx.lineJoin = 'round'; ctx.lineWidth = 3 * scl; ctx.strokeStyle = 'rgba(8,10,14,.78)'; ctx.fillStyle = 'rgba(190,215,255,.96)';
-  ctx.globalAlpha = 0.2 + 0.8 * clamp(state.dome.grid, 0, 1);   // Rasterstärke-Regler dimmt auch die Beschriftung
+  ctx.globalAlpha = 0.2 + 0.8 * clamp(state.dome.grid, 0, 1);   // the grid-strength slider also dims the labels
   const put = (txt, az, el) => {
     const d = dirOf(az, el);
     if (eye && V.dot(d, eye) > 0) return;
     const p = proj(d); if (!p) return;
     const w = ctx.measureText(txt).width + 8 * scl;
     const h = proj(dirOf(az + azS, el)), v = proj(dirOf(az, el + elS));
-    if (h && Math.hypot(h[0] - p[0], h[1] - p[1]) < w) return;       // zu eng nebeneinander
-    if (v && Math.hypot(v[0] - p[0], v[1] - p[1]) < fs + 4 * scl) return;   // zu eng übereinander
+    if (h && Math.hypot(h[0] - p[0], h[1] - p[1]) < w) return;       // too close side by side
+    if (v && Math.hypot(v[0] - p[0], v[1] - p[1]) < fs + 4 * scl) return;   // too close on top of each other
     ctx.strokeText(txt, p[0], p[1]); ctx.fillText(txt, p[0], p[1]);
   };
-  // beide Modi beschriften die Zellmitte (so bleibt alles innerhalb des Masters)
+  // both modes label the cell centre (keeps everything inside the master circle)
   const num = v => String(Math.round(v * 10) / 10);
   for (let c = 0; c < nCol; c++) for (let r = 0; r < nRow; r++) {
     const az = (c + 0.5) * azS, el = (r + 0.5) * elS;
     if (mode === 1) put(colLabel(c) + (r + 1), az, el);
-    else put(`${num(az > 180 ? az - 360 : az)}°/${num(el)}°`, az, el);   // Mittelpunkt der Zelle: Azimut°/Höhe°
+    else put(`${num(az > 180 ? az - 360 : az)}°/${num(el)}°`, az, el);   // cell centre: azimuth°/elevation°
   }
   ctx.restore();
 }
@@ -2112,7 +2113,7 @@ function drawOverlay(c) {
   if (state.dome.gridOn && state.dome.gridLabels > 0) drawGridLabels(octx, proj, 1, c.kind === '3d' && c.outside ? c.eye : null);
   if (state.showUI) drawLayerTools(octx, proj, 1);
   octx.globalAlpha = 1;
-  // Sitz-Marker (Außenansicht) und HUD (Innenansicht)
+  // Seat marker (outside view) and HUD (inside view)
   const dm = state.dome, R = dm.diameter / 2;
   octx.font = '600 12px -apple-system, system-ui, sans-serif';
   if (state.showUI && c.kind === '3d' && c.outside) {
@@ -2132,7 +2133,7 @@ function drawOverlay(c) {
   }
 }
 
-/* ───────────── Interaktion ───────────── */
+/* ───────────── Interaction ───────────── */
 let drag = null;
 function cursorXY(e) { const r = ov.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
 ov.addEventListener('pointerdown', e => {
@@ -2195,7 +2196,7 @@ ov.addEventListener('pointermove', e => {
     const G = geoms[drag.i], s = Math.max(V.dot(dv, G.c), 0.08);
     L.ox[drag.k] = V.dot(dv, G.r) / s / G.hw - G.sx[drag.k] - G.kx[drag.k];
     L.oy[drag.k] = V.dot(dv, G.u) / s / G.hh - G.sy[drag.k] - G.ky[drag.k];
-  } else if (L.mapping === 4) {   // Domemaster-Vollbild: um den Zenit drehen
+  } else if (L.mapping === 4) {   // full domemaster: rotate around the zenith
     const a = Math.atan2(dv[0], -dv[2]) - Math.atan2(drag.g0[0], -drag.g0[2]);
     L.az = wrapPi((drag.az * D2R) + a) * R2D;
   } else {
@@ -2221,11 +2222,11 @@ function zoomFov(k) {
     else state.cam.fovRect = clamp(state.cam.fovRect * k, 30, 140);
   }
 }
-// Trackpad: zwei Finger = Augenhöhe (vertikal) / Sitzwinkel (horizontal), Pinch = Zoom, Alt = Layer skalieren, Cmd = Sitzabstand
+// Trackpad: two fingers = eye height (vertical) / seat angle (horizontal), pinch = zoom, Alt = scale layer, Cmd = seat distance
 ov.addEventListener('wheel', e => {
   e.preventDefault();
   const d = state.dome, Rm = d.diameter / 2;
-  if (e.ctrlKey) { zoomFov(Math.exp(e.deltaY * 0.012)); }            // Pinch (Chrome meldet ihn als ctrl+wheel)
+  if (e.ctrlKey) { zoomFov(Math.exp(e.deltaY * 0.012)); }            // pinch (Chrome reports it as ctrl+wheel)
   else if (e.altKey) {
     const L = state.layers[state.sel];
     if (L && L.used && !L.locked) L.size = clamp(L.size * Math.exp(-(e.deltaY || e.deltaX) * 0.0025), 3, 360);
@@ -2295,12 +2296,12 @@ addEventListener('keydown', e => {
   else if (k === '-') { zoomFov(1.075); syncUI(); save(); }
 });
 
-/* ───────────── Start ───────────── */
+/* ───────────── Start-up ───────────── */
 function resize() {
   const st = document.getElementById('stage');
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = st.clientWidth; H = st.clientHeight;
-  const sc = state.show.on ? state.show.scale : 1;   // im Show-Modus kleiner rendern, per CSS aufgezogen
+  const sc = state.show.on ? state.show.scale : 1;   // render smaller in show mode, stretched via CSS
   ov.width = Math.max(1, Math.round(W * DPR));
   ov.height = Math.max(1, Math.round(H * DPR));
   glc.width = Math.max(1, Math.round(W * DPR * sc));
@@ -2328,7 +2329,7 @@ else {
     });
     renderServers(); bridgeStatus(); if (IS_LOCAL) bridgeConnect();   // hosted pages never touch localhost
     scheduleFrame();
-    // Watchdog: reißt die rAF-Kette ab (z. B. Fenster war beim Start verdeckt), sofort neu anstoßen
+    // Watchdog: if the rAF chain breaks (e.g. window was occluded at start), kick it off again right away
     setInterval(() => { if (performance.now() - lastTick > 700) { rafPending = false; scheduleFrame(); } }, 400);
   } catch (e) {
     document.getElementById('nogl').hidden = false;
@@ -2336,7 +2337,7 @@ else {
     console.error(e);
   }
 }
-// für Debugging in der Konsole
+// for debugging in the console
 window.__dome = { drawDomeWindow, perf, tick, scheduleFrame, bridge, slots, state, domeWin, attachDomeWindow, openDomeWindow, setShowMode, geom, cam, screenToDir, dirToScreen, layerUV, squareToQuad, invertH, dirToPlane, planeToDir };
 })();
 </script>
