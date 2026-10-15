@@ -700,7 +700,9 @@ vec4 layerCol(int i, sampler2D tex, vec3 d){
   vec2 t=uv;
   if(uFlip[i].x>0.5) t.x=1.-t.x;
   if(uFlip[i].y>0.5) t.y=1.-t.y;
-  float ins=uExt[i]>0 ? uInset[i] : 0.;     // edge inset: ignore black border lines of the source
+  // edge inset: only "stretch" clamps the sample (ignores black border lines of the source); the edge-colour mode
+  // leaves the image untouched and uses the inset only when measuring the colour (updateFill)
+  float ins=uExt[i]==1 ? uInset[i] : 0.;
   t=clamp(t,vec2(ins),vec2(1.-ins));
   vec4 cr=uCrop[i];
   vec2 st=vec2(mix(cr.x,cr.z,t.x), mix(1.-cr.w,1.-cr.y,t.y));
