@@ -144,8 +144,6 @@ button.btn.primary{background:var(--acc);color:#0b0d14;border-color:var(--acc);f
 .lrow .top{display:flex;gap:4px;align-items:center}
 .lrow .dot{width:10px;height:10px;border-radius:50%;flex:none;margin-right:2px}
 .lrow .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.lrow .ext{flex:none;display:grid;place-items:center;padding:2px 3px;color:var(--acc);cursor:help}
-.lrow .ext svg{display:block;width:15px;height:15px}
 .lrow .ib{background:none;border:0;color:var(--fg);cursor:pointer;padding:2px 5px;border-radius:5px;font:inherit;line-height:1.2}
 .lrow .ib:hover{background:#ffffff14}
 .lrow .ib.off{opacity:.3}
@@ -295,8 +293,8 @@ const DE = {
     'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.',
   'Preset': 'Preset', 'Export': 'Exportieren', 'Import': 'Importieren', 'Reset all': 'Alles zurücksetzen',
   'Drag to change the order': 'Ziehen, um die Reihenfolge zu ändern', 'Visible / hidden': 'Sichtbar / ausgeblendet',
-  'Lock / unlock': 'Sperren / entsperren', 'Move up (in front of the others)': 'Nach oben (vor die anderen)',
-  'Move down': 'Nach unten', 'Delete layer': 'Layer löschen',
+  'Lock / unlock': 'Sperren / entsperren',
+  'Extend edges: off (click to switch on)': 'Ränder erweitern: aus (Klick zum Einschalten)', 'Delete layer': 'Layer löschen',
   'locked': 'gesperrt',
   'Show mode: throttle the local preview so the Syphon output gets more GPU · S': 'Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S',
   'Show / hide controls (frames, corner handles, labels) · R': 'Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R',
@@ -1200,8 +1198,6 @@ const ICON = (() => {
     lock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.8 0v1.8"/>'),
     extend: svg('<rect x="5.4" y="5.4" width="5.2" height="5.2" rx=".9"/><path d="M8 1.6v2.2M8 12.2v2.2M1.6 8h2.2M12.2 8h2.2"/>'),
     unlock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.6-.9"/>'),
-    up: svg('<path d="M4 9.8 8 5.8l4 4"/>'),
-    down: svg('<path d="M4 6.2l4 4 4-4"/>'),
     x: svg('<path d="M4.4 4.4l7.2 7.2M11.6 4.4l-7.2 7.2"/>'),
     play: svg('<path d="M5 3.6v8.8l7-4.4z" fill="currentColor"/>'),
     pause: svg('<path d="M5.2 3.5v9M10.8 3.5v9" stroke-width="2"/>'),
@@ -1258,12 +1254,6 @@ function selectLayer(i) {
   state.sel = i;
   cards.forEach((c, n) => c.classList.toggle('on', n === i && state.layers[n].used));
   updateLayerList();
-}
-function moveLayer(id, dir) {
-  const o = state.order, k = o.indexOf(id), j = k + dir;
-  if (k < 0 || j < 0 || j >= o.length) return;
-  [o[k], o[j]] = [o[j], o[k]];
-  syncUI(); save();
 }
 function addLayer() {
   const id = state.layers.findIndex(L => !L.used);
@@ -1335,8 +1325,7 @@ function buildLayerList(parent) {
   listEl = h('div', 'llist'); parent.append(listEl);
   for (let id = 0; id < MAXL; id++) {
     const L = state.layers[id];
-    const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm'), ext = h('span', 'ext');
-    ext.innerHTML = ICON.extend; ext.style.display = 'none';
+    const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm');
     el.dataset.id = id;
     const grip = h('span', 'grip'); grip.innerHTML = ICON.grip; grip.title = T('Drag to change the order');
     el.addEventListener('pointerdown', e => startRowDrag(e, id, el));
@@ -1344,10 +1333,14 @@ function buildLayerList(parent) {
     const btn = (html, title, fn) => { const b = h('button', 'ib'); b.innerHTML = html; b.title = T(title); b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; };
     const eye = btn(ICON.eye, 'Visible / hidden', () => { L.on = !L.on; syncUI(); save(); });
     const lock = btn(ICON.unlock, 'Lock / unlock', () => { L.locked = !L.locked; syncUI(); save(); });
-    const up = btn(ICON.up, 'Move up (in front of the others)', () => moveLayer(id, 1));
-    const dn = btn(ICON.down, 'Move down', () => moveLayer(id, -1));
+    // edge extension on/off; remembers the last mode so the toggle brings it back
+    let lastExt = L.extend || 2;
+    const ext = btn(ICON.extend, 'Extend edges', () => {
+      if (L.extend) { lastExt = L.extend; L.extend = 0; } else L.extend = lastExt;
+      syncUI(); save();
+    });
     const del = btn(ICON.x, 'Delete layer', () => removeLayer(id));
-    top.append(grip, dot, nm, ext, eye, lock, up, dn, del);
+    top.append(grip, dot, nm, ext, eye, lock, del);
     const bot = h('div', 'bot'), bsel = h('select'), rng = h('input'), val = h('span', 'v');
     BLEND_OPTS.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; bsel.append(o); });
     bsel.addEventListener('click', e => e.stopPropagation());
@@ -1358,7 +1351,7 @@ function buildLayerList(parent) {
     bot.append(bsel, rng, val);
     el.append(top, bot);
     el.addEventListener('click', () => { if (el.dataset.justDragged) return; selectLayer(id); });
-    rows[id] = { el, nm, ext, eye, lock, up, dn, del, bsel, rng, val };
+    rows[id] = { el, nm, ext, eye, lock, del, bsel, rng, val };
   }
   addBtn = h('button', 'btn', '+ Add layer');
   addBtn.style.marginTop = '4px';
@@ -1374,23 +1367,22 @@ function updateLayerList() {
     listEl.textContent = '';
     [...state.order].reverse().forEach(id => listEl.append(rows[id].el));
   }
-  const o = state.order;
   rows.forEach((r, id) => {
-    const L = state.layers[id], k = o.indexOf(id);
+    const L = state.layers[id];
     r.nm.textContent = L.name || ('Layer ' + LABELS[id]);
     r.el.classList.toggle('sel', id === state.sel);
     r.el.classList.toggle('locked', !!L.locked);
-    // edge extension fills the whole dome and can cover layers behind it → flag it in the list
-    r.ext.style.display = L.extend > 0 ? '' : 'none';
-    r.ext.title = L.extend > 0 ? T(L.extend === 1 ? 'Edges extended: stretched edge pixels fill the whole dome (can cover layers behind)' : 'Edges extended: edge colour fills the whole dome (can cover layers behind)') : '';
+    // edge extension fills the whole dome and can cover layers behind it → toggle + flag in the list
+    r.ext.classList.toggle('on', L.extend > 0);
+    r.ext.classList.toggle('off', !L.extend);
+    r.ext.title = T(L.extend === 1 ? 'Edges extended: stretched edge pixels fill the whole dome (can cover layers behind)'
+      : L.extend === 2 ? 'Edges extended: edge colour fills the whole dome (can cover layers behind)' : 'Extend edges: off (click to switch on)');
     const ei = L.on ? ICON.eye : ICON.eyeOff, li = L.locked ? ICON.lock : ICON.unlock;
     if (r.eye._i !== ei) { r.eye.innerHTML = ei; r.eye._i = ei; }
     if (r.lock._i !== li) { r.lock.innerHTML = li; r.lock._i = li; }
     r.eye.classList.toggle('off', !L.on);
     r.lock.classList.toggle('on', !!L.locked);
     r.lock.classList.toggle('off', !L.locked);
-    r.up.disabled = k < 0 || k === o.length - 1;
-    r.dn.disabled = k <= 0;
     r.del.disabled = !!L.locked;
     if (document.activeElement !== r.bsel) r.bsel.value = L.blend;
     if (document.activeElement !== r.rng) r.rng.value = L.opacity;
