@@ -4,6 +4,8 @@
 
 Created by **Sonarkon** · <https://github.com/sonarkon/Dome-Sim>
 
+🔗 **[Try it online](https://sonarkon.github.io/Dome-Sim/)** – runs in the browser, no install (Syphon in/out is available only in the local macOS version, see [Quick start](#quick-start)).
+
 *Deutsche Kurzfassung weiter unten.*
 
 ![HOPE Dome Sim – inside view with layers, corner handles and the control panels](docs/images/inside-view.png)
@@ -109,6 +111,7 @@ Nothing from Syphon is redistributed here. The bridge listens on `127.0.0.1` onl
 
 **HOPE Dome Sim** ist ein Kuppelprojektions-Simulator im Browser von **Sonarkon**: 2D-Inhalte, Panoramen und vorgerendertes Fulldome-Material auf der Kuppel ansehen, von jedem Sitzplatz prüfen und den Domemaster per Syphon weitergeben – oder direkt auf einen externen Monitor ausgeben.
 
+- 🔗 **Online ausprobieren:** <https://sonarkon.github.io/Dome-Sim/> (ohne Syphon; das gibt es nur lokal unter macOS).
 - Der **Simulator** läuft in jedem aktuellen Browser auf **macOS, Windows und Linux**.
 - Die **Syphon-Brücke** (`bridge/`) gibt es nur für **macOS**. Ohne Brücke funktionieren Kamera/Virtual Cam, Fenster-Aufnahme, Videodatei und das Domemaster-Fenster überall.
 - Start mit Syphon: `./bridge/start.command`, ohne Syphon: `python3 -m http.server 8765`.
