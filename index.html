@@ -142,7 +142,7 @@ button.btn.primary{background:var(--acc);color:#0b0d14;border-color:var(--acc);f
 .lrow .bot{display:grid;grid-template-columns:92px 1fr 38px;gap:8px;align-items:center;margin-top:5px}
 .lrow .bot select{padding:2px 4px;font-size:11px}
 .lrow .bot .v{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
-.lrow.locked .nm::after{content:var(--t-locked," · gesperrt");color:var(--dim);font-weight:400}
+.lrow.locked .nm::after{content:var(--t-locked," · locked");color:var(--dim);font-weight:400}
 aside .langsw{float:right;display:inline-flex;gap:2px;margin-top:1px}
 aside .langsw button{background:none;border:1px solid var(--line);color:var(--dim);font:600 10px/1 inherit;letter-spacing:.06em;padding:4px 6px;border-radius:5px;cursor:pointer}
 aside .langsw button.on{background:var(--acc);border-color:var(--acc);color:#0b0d14}
@@ -163,16 +163,16 @@ details p{padding:0}
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
     <div id="views">
-      <button data-v="inside">Innen<kbd>1</kbd></button>
-      <button data-v="outside">Außen<kbd>2</kbd></button>
+      <button data-v="inside">Inside<kbd>1</kbd></button>
+      <button data-v="outside">Outside<kbd>2</kbd></button>
       <button data-v="master">Domemaster<kbd>3</kbd></button>
       <span class="sep"></span>
-      <button id="showToggle" title="Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S" aria-label="Show-Modus">
+      <button id="showToggle" title="Show mode: throttle the local preview so the Syphon output gets more GPU · S" aria-label="Show mode">
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
           <path d="M2.2 11.5a5.8 5.8 0 1 1 11.6 0"/><path d="M8 11.5 L11 6.5"/><circle cx="8" cy="11.5" r="1" fill="currentColor" stroke="none"/>
         </svg>
       </button>
-      <button id="uiToggle" title="Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R" aria-label="Bedienelemente ein-/ausblenden">
+      <button id="uiToggle" title="Show / hide controls (frames, corner handles, labels) · R" aria-label="Show / hide controls">
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
           <rect x="3.5" y="3.5" width="9" height="9" rx="0.5"/>
           <g fill="currentColor" stroke="none"><rect x="1.6" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="1.6" width="3.6" height="3.6" rx="0.6"/><rect x="1.6" y="10.8" width="3.6" height="3.6" rx="0.6"/><rect x="10.8" y="10.8" width="3.6" height="3.6" rx="0.6"/></g>
@@ -180,8 +180,8 @@ details p{padding:0}
         </svg>
       </button>
       <span class="sep"></span>
-      <input id="gridAmt" type="range" min="0.05" max="1" step="0.01" title="Rasterstärke" aria-label="Rasterstärke">
-      <button id="gridToggle" title="Raster ein-/ausblenden · G" aria-label="Raster ein-/ausblenden">
+      <input id="gridAmt" type="range" min="0.05" max="1" step="0.01" title="Grid strength" aria-label="Grid strength">
+      <button id="gridToggle" title="Show / hide grid · G" aria-label="Show / hide grid">
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
           <circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2v12M3.6 4.6c2.8 1.2 6 1.2 8.8 0M3.6 11.4c2.8-1.2 6-1.2 8.8 0"/>
         </svg>
@@ -189,9 +189,9 @@ details p{padding:0}
     </div>
     <div id="hint"></div>
     <div id="fps"></div>
-    <button id="toggleL" class="edge" title="Ebenen ein-/ausklappen ([)" aria-label="Ebenen ein-/ausklappen">‹</button>
-    <button id="toggleR" class="edge" title="Ausgabe &amp; Ansicht ein-/ausklappen (])" aria-label="Ausgabe ein-/ausklappen">›</button>
-    <div id="nogl" hidden>WebGL2 ist in diesem Browser nicht verfügbar.</div>
+    <button id="toggleL" class="edge" title="Collapse / expand layers ([)" aria-label="Collapse / expand layers">‹</button>
+    <button id="toggleR" class="edge" title="Collapse / expand output &amp; view (])" aria-label="Collapse / expand output">›</button>
+    <div id="nogl" hidden>WebGL2 is not available in this browser.</div>
   </div>
   <aside id="panelR"></aside>
 </div>
@@ -228,161 +228,157 @@ const IS_MAC = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent
 // On a hosted page (e.g. GitHub Pages) Syphon is unavailable; ?hosted=1 forces that mode for previews.
 const IS_LOCAL = URLQ.get('hosted') === '1' ? false
   : (/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(location.hostname) || location.protocol === 'file:');
-// Quelltexte sind deutsch; EN übersetzt sie. T() übersetzt einen Text, Tf() einen Text mit {0}, {1} … Platzhaltern.
-const EN = {
-  'Innen': 'Inside', 'Außen': 'Outside', 'Domemaster': 'Domemaster',
-  'Ebenen': 'Layers', 'Layer-Einstellungen': 'Layer settings', '+ Layer hinzufügen': '+ Add layer', 'Name': 'Name',
-  'Quelle': 'Source', 'Typ': 'Type', 'Testbild': 'Test pattern', 'Syphon (über Brücke)': 'Syphon (via bridge)',
-  'Kamera / Virtual Cam': 'Camera / virtual cam', 'Fenster / Bildschirm': 'Window / screen', 'Videodatei': 'Video file', 'Video- oder Bilddatei': 'Video / image file',
-  '16:9 Rechteck': '16:9 rectangle', '2:1 Panorama (Equirect)': '2:1 panorama (equirect)', '1:1 Domemaster (Fisheye)': '1:1 domemaster (fisheye)',
-  'Syphon-Server': 'Syphon server', '— Server wählen —': '— choose server —', '— Brücke nicht verbunden —': '— bridge not connected —',
-  'Übertragung': 'Transfer', '960 px breit': '960 px wide', '1280 px breit': '1280 px wide', '1920 px breit': '1920 px wide', '2560 px breit': '2560 px wide',
-  'Original': 'Original', 'Server-Liste aktualisieren': 'Refresh server list',
-  'Gerät': 'Device', 'Standardkamera': 'Default camera', '— zuerst „Geräte laden“ —': '— load devices first —',
-  'Geräte laden': 'Load devices', 'Neu verbinden': 'Reconnect', 'Fenster / Bildschirm wählen …': 'Choose window / screen …', 'Datei': 'File',
-  'Zuschnitt der Quelle': 'Source crop', 'Links abschn.': 'Crop left', 'Rechts abschn.': 'Crop right', 'Oben abschn.': 'Crop top', 'Unten abschn.': 'Crop bottom',
-  'Ganzes Bild': 'Whole image', 'Linke Hälfte': 'Left half', 'Rechte Hälfte': 'Right half', 'Obere Hälfte': 'Top half', 'Untere Hälfte': 'Bottom half',
-  'Horizontal spiegeln': 'Flip horizontally', 'Vertikal spiegeln': 'Flip vertically',
-  'Platzierung auf der Kuppel': 'Placement on dome', 'Mapping': 'Mapping',
-  'Flach – Screen vor dem Publikum (Viereck)': 'Flat – screen in front of audience (quad)',
-  'Viereck in der Domemaster-Ebene': 'Quad in domemaster plane', 'Viereck in Azimut/Elevation': 'Quad in azimuth/elevation',
-  'Panorama-Band 360° (Equirect)': 'Panorama band 360° (equirect)', 'Domemaster-Vollbild (1:1 Fisheye)': 'Full domemaster (1:1 fisheye)',
-  'Azimut / Dreh.': 'Azimuth / rot.', 'Elevation': 'Elevation', 'Größe (Breite)': 'Size (width)', 'Roll': 'Roll',
-  'Seitenverhältnis folgt Quelle': 'Aspect follows source', 'Seitenverh.': 'Aspect',
-  'Trapez vertikal': 'Keystone vertical', 'Trapez horizontal': 'Keystone horizontal',
-  'Trapez vertikal: + = oben schmaler, − = oben breiter. Trapez horizontal: + = rechte Kante niedriger, − = linke Kante niedriger. Feinschliff über die Eckpunkte im Viewport.':
-    'Keystone vertical: + = narrower at top, − = wider at top. Keystone horizontal: + = right edge lower, − = left edge lower. Fine-tune with the corner handles in the viewport.',
-  'Verzerrung zurücksetzen': 'Reset distortion',
-  'Ecken ziehen = perspektivisch verzerren · Fläche ziehen = verschieben · Alt+Scrollen = skalieren':
-    'Drag corners = perspective warp · drag surface = move · Alt+scroll = scale',
-  'Darstellung': 'Appearance', 'Deckkraft': 'Opacity', 'Blend': 'Blend', 'Randweiche': 'Edge feather', 'Randweiche pro Seite': 'Feather per side',
-  'Links': 'Left', 'Rechts': 'Right', 'Oben': 'Top', 'Unten': 'Bottom', 'Verlauf': 'Falloff',
-  'kompakt': 'compact', 'normal': 'normal', 'weit': 'wide',
-  'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.':
-    'Edge feather = width of the transition (100 % reaches the image center). Falloff = curve shape: compact keeps the image bright up to near the edge and fades quickly there, wide darkens gently over the whole edge zone.',
-  'Rand erweitern (Hintergrund füllen)': 'Extend edges (fill background)', 'Modus': 'Mode', 'Aus': 'Off',
-  'Rand-Pixel strecken': 'Stretch edge pixels', 'Randfarbe füllen (Median)': 'Fill with edge color (median)', 'Rand-Einzug': 'Edge inset',
-  'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.':
-    'For videos on a solid background: the edge is extended over the whole dome. “Edge color” uses the most common color of the image borders (robust against noise); “edge feather” blends the video softly into the background. “Edge inset” reads the color slightly further inside – needed when the source has a thin black border line.',
-  'Ansicht & Kuppel': 'View & dome', 'Durchmesser': 'Diameter', 'Augenhöhe': 'Eye height', 'Kuppelrand': 'Dome rim',
-  'Kuppelrand auf Augenhöhe': 'Dome rim at eye height', 'Sitz: Abstand': 'Seat: distance', 'Sitz: Winkel': 'Seat: angle',
-  '(0=vorn)': '(0=front)', 'Linse (Innen)': 'Lens (inside)', 'Rechtwinklig': 'Rectilinear', 'Fisheye (equidistant)': 'Fisheye (equidistant)',
-  'Blickfeld': 'Field of view', 'Raster': 'Grid', 'Kuppel-Grundhell.': 'Dome base light',
-  'Blick zurücksetzen': 'Reset view', 'Sitz in die Mitte': 'Seat to center',
-  'Domemaster-Fenster': 'Domemaster window', 'Domemaster in eigenem Fenster öffnen': 'Open domemaster in its own window',
-  'Fenster-Rate': 'Window rate', 'Max. Auflösung': 'Max. resolution', 'Kein Fenster geöffnet': 'No window open',
-  'Zeigt das 1:1-Domemaster ohne Raster und Rahmen, unabhängig vom Show-Modus. Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls.':
-    'Shows the 1:1 domemaster without grid and frames, independent of show mode. Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too.',
-  'Syphon': 'Syphon', 'Brücke neu verbinden': 'Reconnect bridge', 'Servername': 'Server name', 'Größe': 'Size',
-  'Domemaster 1:1 (Fisheye) ausgeben': 'Output domemaster 1:1 (fisheye)', 'Aktuelle Ansicht (16:9) ausgeben': 'Output current view (16:9)',
-  'Bildrate': 'Frame rate', 'Ausgabe vertikal spiegeln': 'Flip output vertically', 'Ausgabe aus': 'Output off',
-  'Rohe Frames über localhost: 1024 px ≈ 4 MB pro Bild, 2048 px ≈ 16 MB.': 'Raw frames over localhost: 1024 px ≈ 4 MB per frame, 2048 px ≈ 16 MB.',
-  'Syphon einrichten': 'Syphon setup',
-  'Show-Modus': 'Show mode', 'Show-Modus (nur die Vorschau drosseln)': 'Show mode (throttle only the preview)',
-  'Anzeige-Rate': 'Preview rate', 'Anzeige-Größe': 'Preview size',
-  'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.':
-    'Affects only the preview in the main window. Syphon outputs and the domemaster window keep their size and rate.',
-  'Preset': 'Preset', 'Exportieren': 'Export', 'Importieren': 'Import', 'Alles zurücksetzen': 'Reset all',
-  'Ziehen, um die Reihenfolge zu ändern': 'Drag to change the order', 'Sichtbar / ausgeblendet': 'Visible / hidden',
-  'Sperren / entsperren': 'Lock / unlock', 'Nach oben (vor die anderen)': 'Move up (in front of the others)',
-  'Nach unten': 'Move down', 'Layer löschen': 'Delete layer',
-  'gesperrt': 'locked',
-  'Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S': 'Show mode: throttle the local preview so the Syphon output gets more GPU · S',
-  'Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R': 'Show / hide controls (frames, corner handles, labels) · R',
-  'Bedienelemente ein-/ausblenden': 'Show / hide controls',
-  'Ebenen ein-/ausklappen ([)': 'Collapse / expand layers ([)', 'Ebenen ein-/ausklappen': 'Collapse / expand layers',
-  'Ausgabe & Ansicht ein-/ausklappen (])': 'Collapse / expand output & view (])', 'Ausgabe ein-/ausklappen': 'Collapse / expand output',
-  'WebGL2 ist in diesem Browser nicht verfügbar.': 'WebGL2 is not available in this browser.',
+// UI texts: the strings in this file are English; DE maps them to German (used when the language is "de").
+const DE = {
+  'Inside': 'Innen', 'Outside': 'Außen', 'Domemaster': 'Domemaster',
+  'Layers': 'Ebenen', 'Layer settings': 'Layer-Einstellungen', '+ Add layer': '+ Layer hinzufügen', 'Name': 'Name',
+  'Source': 'Quelle', 'Type': 'Typ', 'Test pattern': 'Testbild', 'Syphon (via bridge)': 'Syphon (über Brücke)',
+  'Camera / virtual cam': 'Kamera / Virtual Cam', 'Window / screen': 'Fenster / Bildschirm', 'Video / image file': 'Video- oder Bilddatei',
+  '16:9 rectangle': '16:9 Rechteck', '2:1 panorama (equirect)': '2:1 Panorama (Equirect)', '1:1 domemaster (fisheye)': '1:1 Domemaster (Fisheye)',
+  'Syphon server': 'Syphon-Server', '— choose server —': '— Server wählen —', '— bridge not connected —': '— Brücke nicht verbunden —',
+  'Transfer': 'Übertragung', '960 px wide': '960 px breit', '1280 px wide': '1280 px breit', '1920 px wide': '1920 px breit', '2560 px wide': '2560 px breit',
+  'Original': 'Original', 'Refresh server list': 'Server-Liste aktualisieren',
+  'Device': 'Gerät', 'Default camera': 'Standardkamera', '— load devices first —': '— zuerst „Geräte laden“ —',
+  'Load devices': 'Geräte laden', 'Reconnect': 'Neu verbinden', 'Choose window / screen …': 'Fenster / Bildschirm wählen …', 'File': 'Datei',
+  'Source crop': 'Zuschnitt der Quelle', 'Crop left': 'Links abschn.', 'Crop right': 'Rechts abschn.', 'Crop top': 'Oben abschn.', 'Crop bottom': 'Unten abschn.',
+  'Whole image': 'Ganzes Bild', 'Left half': 'Linke Hälfte', 'Right half': 'Rechte Hälfte', 'Top half': 'Obere Hälfte', 'Bottom half': 'Untere Hälfte',
+  'Flip horizontally': 'Horizontal spiegeln', 'Flip vertically': 'Vertikal spiegeln',
+  'Placement on dome': 'Platzierung auf der Kuppel', 'Mapping': 'Mapping',
+  'Flat – screen in front of audience (quad)': 'Flach – Screen vor dem Publikum (Viereck)',
+  'Quad in domemaster plane': 'Viereck in der Domemaster-Ebene', 'Quad in azimuth/elevation': 'Viereck in Azimut/Elevation',
+  'Panorama band 360° (equirect)': 'Panorama-Band 360° (Equirect)', 'Full domemaster (1:1 fisheye)': 'Domemaster-Vollbild (1:1 Fisheye)',
+  'Azimuth / rot.': 'Azimut / Dreh.', 'Elevation': 'Elevation', 'Size (width)': 'Größe (Breite)', 'Roll': 'Roll',
+  'Aspect follows source': 'Seitenverhältnis folgt Quelle', 'Aspect': 'Seitenverh.',
+  'Keystone vertical': 'Trapez vertikal', 'Keystone horizontal': 'Trapez horizontal',
+  'Keystone vertical: + = narrower at top, − = wider at top. Keystone horizontal: + = right edge lower, − = left edge lower. Fine-tune with the corner handles in the viewport.':
+    'Trapez vertikal: + = oben schmaler, − = oben breiter. Trapez horizontal: + = rechte Kante niedriger, − = linke Kante niedriger. Feinschliff über die Eckpunkte im Viewport.',
+  'Reset distortion': 'Verzerrung zurücksetzen',
+  'Drag corners = perspective warp · drag surface = move · Alt+scroll = scale':
+    'Ecken ziehen = perspektivisch verzerren · Fläche ziehen = verschieben · Alt+Scrollen = skalieren',
+  'Appearance': 'Darstellung', 'Opacity': 'Deckkraft', 'Blend': 'Blend', 'Edge feather': 'Randweiche', 'Feather per side': 'Randweiche pro Seite',
+  'Left': 'Links', 'Right': 'Rechts', 'Top': 'Oben', 'Bottom': 'Unten', 'Falloff': 'Verlauf',
+  'compact': 'kompakt', 'normal': 'normal', 'wide': 'weit',
+  'Edge feather = width of the transition (100 % reaches the image center). Falloff = curve shape: compact keeps the image bright up to near the edge and fades quickly there, wide darkens gently over the whole edge zone.':
+    'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.',
+  'Extend edges (fill background)': 'Rand erweitern (Hintergrund füllen)', 'Mode': 'Modus', 'Off': 'Aus',
+  'Stretch edge pixels': 'Rand-Pixel strecken', 'Fill with edge color (median)': 'Randfarbe füllen (Median)', 'Edge inset': 'Rand-Einzug',
+  'For videos on a solid background: the edge is extended over the whole dome. “Edge color” uses the most common color of the image borders (robust against noise); “edge feather” blends the video softly into the background. “Edge inset” reads the color slightly further inside – needed when the source has a thin black border line.':
+    'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.',
+  'View & dome': 'Ansicht & Kuppel', 'Diameter': 'Durchmesser', 'Eye height': 'Augenhöhe', 'Dome rim': 'Kuppelrand',
+  'Dome rim at eye height': 'Kuppelrand auf Augenhöhe', 'Seat: distance': 'Sitz: Abstand', 'Seat: angle': 'Sitz: Winkel',
+  '(0=front)': '(0=vorn)', 'Lens (inside)': 'Linse (Innen)', 'Rectilinear': 'Rechtwinklig', 'Fisheye (equidistant)': 'Fisheye (equidistant)',
+  'Field of view': 'Blickfeld', 'Grid': 'Raster', 'Dome base light': 'Kuppel-Grundhell.',
+  'Reset view': 'Blick zurücksetzen', 'Seat to center': 'Sitz in die Mitte',
+  'Domemaster window': 'Domemaster-Fenster', 'Open domemaster in its own window': 'Domemaster in eigenem Fenster öffnen',
+  'Window rate': 'Fenster-Rate', 'Max. resolution': 'Max. Auflösung', 'No window open': 'Kein Fenster geöffnet',
+  'Syphon': 'Syphon', 'Reconnect bridge': 'Brücke neu verbinden', 'Server name': 'Servername', 'Size': 'Größe',
+  'Output domemaster 1:1 (fisheye)': 'Domemaster 1:1 (Fisheye) ausgeben', 'Output current view (16:9)': 'Aktuelle Ansicht (16:9) ausgeben',
+  'Frame rate': 'Bildrate', 'Flip output vertically': 'Ausgabe vertikal spiegeln', 'Output off': 'Ausgabe aus',
+  'Raw frames over localhost: 1024 px ≈ 4 MB per frame, 2048 px ≈ 16 MB.': 'Rohe Frames über localhost: 1024 px ≈ 4 MB pro Bild, 2048 px ≈ 16 MB.',
+  'Syphon setup': 'Syphon einrichten',
+  'Show mode': 'Show-Modus', 'Show mode (throttle only the preview)': 'Show-Modus (nur die Vorschau drosseln)',
+  'Preview rate': 'Anzeige-Rate', 'Preview size': 'Anzeige-Größe',
+  'Affects only the preview in the main window. Syphon outputs and the domemaster window keep their size and rate.':
+    'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.',
+  'Preset': 'Preset', 'Export': 'Exportieren', 'Import': 'Importieren', 'Reset all': 'Alles zurücksetzen',
+  'Drag to change the order': 'Ziehen, um die Reihenfolge zu ändern', 'Visible / hidden': 'Sichtbar / ausgeblendet',
+  'Lock / unlock': 'Sperren / entsperren', 'Move up (in front of the others)': 'Nach oben (vor die anderen)',
+  'Move down': 'Nach unten', 'Delete layer': 'Layer löschen',
+  'locked': 'gesperrt',
+  'Show mode: throttle the local preview so the Syphon output gets more GPU · S': 'Show-Modus: lokale Anzeige drosseln, damit die Syphon-Ausgabe mehr GPU hat · S',
+  'Show / hide controls (frames, corner handles, labels) · R': 'Bedienelemente (Rahmen, Eckpunkte, Labels) ein-/ausblenden · R',
+  'Show / hide controls': 'Bedienelemente ein-/ausblenden',
+  'Collapse / expand layers ([)': 'Ebenen ein-/ausklappen ([)', 'Collapse / expand layers': 'Ebenen ein-/ausklappen',
+  'Collapse / expand output & view (])': 'Ausgabe & Ansicht ein-/ausklappen (])', 'Collapse / expand output': 'Ausgabe ein-/ausklappen',
+  'WebGL2 is not available in this browser.': 'WebGL2 ist in diesem Browser nicht verfügbar.',
   // Status / Meldungen
-  'Testbild ': 'Test pattern ',
-  'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten': 'Capture ended – restart with “Choose window / screen”',
-  'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.':
-    'Window capture is not supported by this browser (getDisplayMedia). Please use Chrome or Safari.',
-  ' – der Browser verlangt einen direkten Klick auf den Button': ' – the browser requires a direct click on the button',
-  ' – Auswahl abgebrochen oder Bildschirmaufnahme nicht erlaubt (macOS: Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → Browser aktivieren, danach Browser neu starten)':
-    ' – selection cancelled or screen recording not allowed (macOS: System Settings → Privacy & Security → Screen & System Audio Recording → enable the browser, then restart it)',
-  'Bereit – unten auf „Fenster / Bildschirm wählen …“ klicken (der Browser verlangt dafür einen direkten Klick).':
-    'Ready – click “Choose window / screen …” below (the browser requires a direct click).',
-  'Datei wählen …': 'Choose file …', 'Server wählen …': 'Choose server …', 'Brücke nicht verbunden': 'Bridge not connected',
-  ' · verbinde …': ' · connecting …',
-  'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)': 'Bridge not connected – start ./syphon-bridge in the “bridge” folder (or start.command)',
-  'Fenster geschlossen': 'Window closed', 'WebGL2 im Fenster nicht verfügbar': 'WebGL2 not available in the window',
-  'Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild': 'Window open – drag it to the external monitor, double-click or F = fullscreen',
-  'Popup blockiert – bitte Popups für diese Seite erlauben.': 'Popup blocked – please allow popups for this page.',
-  'Ungültige Verzerrung – Ecken zurücksetzen': 'Invalid distortion – reset corners',
-  '  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°': '  ·  Reference: 4K master ≈ 23 px/°, 2K ≈ 11 px/°',
-  'Syphon-Server nicht gefunden': 'Syphon server not found', 'Client konnte nicht erstellt werden': 'Client could not be created',
-  'Syphon-Server konnte nicht erstellt werden': 'Syphon server could not be created',
+  'Capture ended – restart with “Choose window / screen”': 'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten',
+  'Window capture is not supported by this browser (getDisplayMedia). Please use Chrome or Safari.':
+    'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.',
+  ' – the browser requires a direct click on the button': ' – der Browser verlangt einen direkten Klick auf den Button',
+  ' – selection cancelled or screen recording not allowed (macOS: System Settings → Privacy & Security → Screen & System Audio Recording → enable the browser, then restart it)':
+    ' – Auswahl abgebrochen oder Bildschirmaufnahme nicht erlaubt (macOS: Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → Browser aktivieren, danach Browser neu starten)',
+  'Ready – click “Choose window / screen …” below (the browser requires a direct click).':
+    'Bereit – unten auf „Fenster / Bildschirm wählen …“ klicken (der Browser verlangt dafür einen direkten Klick).',
+  'Choose file …': 'Datei wählen …', 'Choose server …': 'Server wählen …', 'Bridge not connected': 'Brücke nicht verbunden',
+  ' · connecting …': ' · verbinde …',
+  'Bridge not connected – start ./syphon-bridge in the “bridge” folder (or start.command)': 'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)',
+  'Window closed': 'Fenster geschlossen', 'WebGL2 not available in the window': 'WebGL2 im Fenster nicht verfügbar',
+  'Window open – drag it to the external monitor, double-click or F = fullscreen': 'Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild',
+  'Popup blocked – please allow popups for this page.': 'Popup blockiert – bitte Popups für diese Seite erlauben.',
+  'Invalid distortion – reset corners': 'Ungültige Verzerrung – Ecken zurücksetzen',
+  '  ·  Reference: 4K master ≈ 23 px/°, 2K ≈ 11 px/°': '  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°',
+  'Syphon server not found': 'Syphon-Server nicht gefunden', 'Client could not be created': 'Client konnte nicht erstellt werden',
+  'Syphon server could not be created': 'Syphon-Server konnte nicht erstellt werden',
   // Overlay / HUD / Hinweise
-  'Augenhöhe ': 'Eye height ', 'Versatz zur Mitte': 'offset to center', 'Sitz': 'Seat', 'Auge': 'eye', 'ziehen': 'drag',
-  ' · Show-Modus': ' · show mode', 'Syphon-Ausgabe': 'Syphon output', 'ms/Bild': 'ms/frame',
-  'Domemaster (unten = vorne) · Ecken ziehen: Perspektive · Fläche ziehen: verschieben · Alt+Scrollen: skalieren · Tab: Layer · H: Spalten · F: Vollbild':
-    'Domemaster (bottom = front) · drag corners: perspective · drag surface: move · Alt+scroll: scale · Tab: layer · H: columns · F: fullscreen',
-  'Ziehen: umsehen · Zwei Finger ↑↓: Augenhöhe, ←→: um die Kuppel gehen · Cmd+↑↓: Sitzabstand · Pinch/+/−: Zoom · Alt+Scrollen: Layer skalieren · Ecken ziehen: Perspektive':
-    'Drag: look around · two fingers ↑↓: eye height, ←→: walk around the dome · Cmd+↑↓: seat distance · pinch/+/−: zoom · Alt+scroll: scale layer · drag corners: perspective',
-  'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren':
-    'Drag: orbit · drag the yellow seat: audience position · two fingers ↑↓: distance · drag corners: perspective · Alt+scroll: scale layer',
-  'Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild':
-    'Controls hidden · drag: look around · R: show frames again · H: columns · F: fullscreen',
+  'Eye height ': 'Augenhöhe ', 'offset to center': 'Versatz zur Mitte', 'Seat': 'Sitz', 'eye': 'Auge', 'drag': 'ziehen',
+  ' · show mode': ' · Show-Modus', 'Syphon output': 'Syphon-Ausgabe', 'ms/frame': 'ms/Bild',
+  'Domemaster (bottom = front) · drag corners: perspective · drag surface: move · Alt+scroll: scale · Tab: layer · H: columns · F: fullscreen':
+    'Domemaster (unten = vorne) · Ecken ziehen: Perspektive · Fläche ziehen: verschieben · Alt+Scrollen: skalieren · Tab: Layer · H: Spalten · F: Vollbild',
+  'Drag: look around · two fingers ↑↓: eye height, ←→: walk around the dome · Cmd+↑↓: seat distance · pinch/+/−: zoom · Alt+scroll: scale layer · drag corners: perspective':
+    'Ziehen: umsehen · Zwei Finger ↑↓: Augenhöhe, ←→: um die Kuppel gehen · Cmd+↑↓: Sitzabstand · Pinch/+/−: Zoom · Alt+Scrollen: Layer skalieren · Ecken ziehen: Perspektive',
+  'Drag: orbit · drag the yellow seat: audience position · two fingers ↑↓: distance · drag corners: perspective · Alt+scroll: scale layer':
+    'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren',
+  'Controls hidden · drag: look around · R: show frames again · H: columns · F: fullscreen':
+    'Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild',
   // Testbilder
-  '↖ OBEN LINKS': '↖ TOP LEFT', 'OBEN RECHTS ↗': 'TOP RIGHT ↗', 'UNTEN LINKS': 'BOTTOM LEFT', 'UNTEN RECHTS': 'BOTTOM RIGHT',
-  'VORNE': 'FRONT', 'HINTEN': 'BACK', 'LINKS': 'LEFT', 'RECHTS': 'RIGHT',
-  'VORNE (Azimut 0°) – Horizont = Mittellinie': 'FRONT (azimuth 0°) – horizon = center line',
-  'ZENIT ↑ (oberer Rand)': 'ZENITH ↑ (top edge)', 'HINTEN (±180°)': 'BACK (±180°)',
-  'Rand = Horizont 0°': 'Edge = horizon 0°', 'Zenit 90°': 'Zenith 90°',
+  '↖ TOP LEFT': '↖ OBEN LINKS', 'TOP RIGHT ↗': 'OBEN RECHTS ↗', 'BOTTOM LEFT': 'UNTEN LINKS', 'BOTTOM RIGHT': 'UNTEN RECHTS',
+  'FRONT': 'VORNE', 'BACK': 'HINTEN', 'LEFT': 'LINKS', 'RIGHT': 'RECHTS',
+  'FRONT (azimuth 0°) – horizon = center line': 'VORNE (Azimut 0°) – Horizont = Mittellinie',
+  'ZENITH ↑ (top edge)': 'ZENIT ↑ (oberer Rand)', 'BACK (±180°)': 'HINTEN (±180°)',
+  'Edge = horizon 0°': 'Rand = Horizont 0°', 'Zenith 90°': 'Zenit 90°',
   // Vorlagen mit Platzhaltern
-  'Kamera-Fehler: {0}': 'Camera error: {0}',
-  'Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.': 'Window capture failed: {0}{1}. Try again with “Choose window / screen”.',
-  'Brücke verbunden · {0} Syphon-Server gefunden': 'Bridge connected · {0} Syphon servers found',
-  'Läuft als Syphon-Server: {0}': 'Running as Syphon server: {0}',
-  'Server „{0}“ nicht gefunden': 'Server “{0}” not found',
-  '{0} · verbinde …': '{0} · connecting …',
-  'Fehler: {0}': 'Error: {0}',
-  'Kamera {0}': 'Camera {0}',
-  'Ausschnitt: {0} % × {1} %': 'Region: {0} % × {1} %',
+  'Camera error: {0}': 'Kamera-Fehler: {0}',
+  'Window capture failed: {0}{1}. Try again with “Choose window / screen”.': 'Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.',
+  'Bridge connected · {0} Syphon servers found': 'Brücke verbunden · {0} Syphon-Server gefunden',
+  'Running as Syphon server: {0}': 'Läuft als Syphon-Server: {0}',
+  'Server “{0}” not found': 'Server „{0}“ nicht gefunden',
+  '{0} · connecting …': '{0} · verbinde …',
+  'Error: {0}': 'Fehler: {0}',
+  'Camera {0}': 'Kamera {0}',
+  'Region: {0} % × {1} %': 'Ausschnitt: {0} % × {1} %',
   '  ({0} × {1} px)': '  ({0} × {1} px)',
-  'Fisheye-Vollbild: Bildrand = {0}° Zenitdistanz · {1} px/° (Quelle {2} px)': 'Full fisheye: image edge = {0}° zenith distance · {1} px/° (source {2} px)',
-  'Panorama {0}° × {1}° · {2} px/° (Quelle {3} px)': 'Panorama {0}° × {1}° · {2} px/° (source {3} px)',
-  'Winkelgröße {0}° × {1}° ≈ {2} × {3} m an der Kuppel · {4} px/° (Quelle {5} px)': 'Angular size {0}° × {1}° ≈ {2} × {3} m on the dome · {4} px/° (source {5} px)',
-  'Auge zur Kuppelmitte: {0}{1} m  (Kuppelrand = Höhe über Boden; darunter Rundwand)': 'Eye to dome center: {0}{1} m  (dome rim = height above floor; wall below)',
-  'Preset ungültig: {0}': 'Invalid preset: {0}',
-  'Syphon-Ausgabe <b>{0}</b> fps · {1} ms/Bild': 'Syphon output <b>{0}</b> fps · {1} ms/frame',
-  'Augenhöhe {0} m · Kuppelrand {1} m · Versatz zur Mitte {2}{3} m': 'Eye height {0} m · dome rim {1} m · offset to center {2}{3} m',
-  'Sitz {0} m @ {1}° · FOV {2}°': 'Seat {0} m @ {1}° · FOV {2}°',
-  'Sitz · {0} m · Auge {1} m  (ziehen)': 'Seat · {0} m · eye {1} m  (drag)',
-  'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.':
-    'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.',
-  'Sprache': 'Language', 'Projektname': 'Project name',
-  'Syphon (nur offline)': 'Syphon (offline only)',
-  'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).': 'Syphon is only available offline – run the sim locally (start.command, macOS).',
-  'Syphon braucht die lokale Brücke (nur macOS). Diese Online-Version kann sie nicht nutzen – von GitHub laden und start.command ausführen.':
-    'Syphon needs the local bridge (macOS only). This online version cannot use it – download it from GitHub and run start.command.',
-  'Syphon-Ein-/Ausgabe ist nur in der lokalen Version verfügbar (macOS).': 'Syphon input/output is only available in the local version (macOS).',
-  'NUR OFFLINE VERFÜGBAR': 'AVAILABLE OFFLINE ONLY', 'Lokal starten (macOS): start.command': 'Run locally (macOS): start.command',
-  'Brücke nicht gestartet': 'Bridge not running', 'start.command ausführen': 'run start.command', 'Warte auf Syphon-Server …': 'Waiting for a Syphon server …',
-  'Raster-Beschriftung': 'Grid labels', 'Zellen-IDs (A1 …)': 'Cell IDs (A1 …)', 'Koordinaten (Azimut/Höhe)': 'Coordinates (azimuth/elevation)',
-  'Werkzeuge': 'Tools',
-  'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)': 'Show grid in the domemaster window (strength and resolution as in the view)',
-  'Rahmen, Eckpunkte und Layer-Namen im Domemaster-Fenster anzeigen': 'Show frames, corner handles and layer names in the domemaster window',
-  'Raster im Domemaster-Ausgang': 'Grid in domemaster output',
-  'Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls. Unabhängig vom Show-Modus.': 'Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too. Independent of show mode.',
-  'Raster-Auflösung': 'Grid resolution', 'Grob (45° / 30°)': 'Coarse (45° / 30°)', 'Normal (30° / 15°)': 'Normal (30° / 15°)', 'Fein (15° / 10°)': 'Fine (15° / 10°)', 'Sehr fein (10° / 5°)': 'Very fine (10° / 5°)',
-  'Raster ein-/ausblenden · G': 'Show / hide grid · G', 'Raster ein-/ausblenden': 'Show / hide grid', 'Rasterstärke': 'Grid strength',
-  'Abspielen': 'Play', 'Pause': 'Pause', 'Zeitleiste': 'Timeline',
-  'Bild konnte nicht geladen werden: {0}': 'Could not load image: {0}',
-  'Info & Credits': 'Info & credits',
+  'Full fisheye: image edge = {0}° zenith distance · {1} px/° (source {2} px)': 'Fisheye-Vollbild: Bildrand = {0}° Zenitdistanz · {1} px/° (Quelle {2} px)',
+  'Panorama {0}° × {1}° · {2} px/° (source {3} px)': 'Panorama {0}° × {1}° · {2} px/° (Quelle {3} px)',
+  'Angular size {0}° × {1}° ≈ {2} × {3} m on the dome · {4} px/° (source {5} px)': 'Winkelgröße {0}° × {1}° ≈ {2} × {3} m an der Kuppel · {4} px/° (Quelle {5} px)',
+  'Eye to dome center: {0}{1} m  (dome rim = height above floor; wall below)': 'Auge zur Kuppelmitte: {0}{1} m  (Kuppelrand = Höhe über Boden; darunter Rundwand)',
+  'Invalid preset: {0}': 'Preset ungültig: {0}',
+  'Syphon output <b>{0}</b> fps · {1} ms/frame': 'Syphon-Ausgabe <b>{0}</b> fps · {1} ms/Bild',
+  'Eye height {0} m · dome rim {1} m · offset to center {2}{3} m': 'Augenhöhe {0} m · Kuppelrand {1} m · Versatz zur Mitte {2}{3} m',
+  'Seat {0} m @ {1}° · FOV {2}°': 'Sitz {0} m @ {1}° · FOV {2}°',
+  'Seat · {0} m · eye {1} m  (drag)': 'Sitz · {0} m · Auge {1} m  (ziehen)',
+  'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.':
+    'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.',
+  'Language': 'Sprache', 'Project name': 'Projektname',
+  'Syphon (offline only)': 'Syphon (nur offline)',
+  'Syphon is only available offline – run the sim locally (start.command, macOS).': 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).',
+  'Syphon needs the local bridge (macOS only). This online version cannot use it – download it from GitHub and run start.command.':
+    'Syphon braucht die lokale Brücke (nur macOS). Diese Online-Version kann sie nicht nutzen – von GitHub laden und start.command ausführen.',
+  'Syphon input/output is only available in the local version (macOS).': 'Syphon-Ein-/Ausgabe ist nur in der lokalen Version verfügbar (macOS).',
+  'AVAILABLE OFFLINE ONLY': 'NUR OFFLINE VERFÜGBAR', 'Run locally (macOS): start.command': 'Lokal starten (macOS): start.command',
+  'Bridge not running': 'Brücke nicht gestartet', 'run start.command': 'start.command ausführen', 'Waiting for a Syphon server …': 'Warte auf Syphon-Server …',
+  'Grid labels': 'Raster-Beschriftung', 'Cell IDs (A1 …)': 'Zellen-IDs (A1 …)', 'Coordinates (azimuth/elevation)': 'Koordinaten (Azimut/Höhe)',
+  'Tools': 'Werkzeuge',
+  'Show grid in the domemaster window (strength and resolution as in the view)': 'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)',
+  'Show frames, corner handles and layer names in the domemaster window': 'Rahmen, Eckpunkte und Layer-Namen im Domemaster-Fenster anzeigen',
+  'Grid in domemaster output': 'Raster im Domemaster-Ausgang',
+  'Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too. Independent of show mode.': 'Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls. Unabhängig vom Show-Modus.',
+  'Grid resolution': 'Raster-Auflösung', 'Coarse (45° / 30°)': 'Grob (45° / 30°)', 'Normal (30° / 15°)': 'Normal (30° / 15°)', 'Fine (15° / 10°)': 'Fein (15° / 10°)', 'Very fine (10° / 5°)': 'Sehr fein (10° / 5°)',
+  'Show / hide grid · G': 'Raster ein-/ausblenden · G', 'Show / hide grid': 'Raster ein-/ausblenden', 'Grid strength': 'Rasterstärke',
+  'Play': 'Abspielen', 'Pause': 'Pause', 'Timeline': 'Zeitleiste',
+  'Could not load image: {0}': 'Bild konnte nicht geladen werden: {0}',
 };
-function T(s) { return (LANG === 'en' && s != null && EN[s] !== undefined) ? EN[s] : s; }
+function T(s) { return (LANG === 'de' && s != null && DE[s] !== undefined) ? DE[s] : s; }
 function Tf(key, ...args) { return T(key).replace(/\{(\d+)\}/g, (_, n) => args[+n]); }
-const BRIDGE_ERR = { server_not_found: 'Syphon-Server nicht gefunden', client_failed: 'Client konnte nicht erstellt werden', server_create_failed: 'Syphon-Server konnte nicht erstellt werden' };
+const BRIDGE_ERR = { server_not_found: 'Syphon server not found', client_failed: 'Client could not be created', server_create_failed: 'Syphon server could not be created' };
 // statische HTML-Texte (Ansichtsleiste, Tooltips) einmalig übersetzen
 function translateStatic() {
-  document.documentElement.style.setProperty('--t-locked', JSON.stringify(' · ' + T('gesperrt')));
-  if (LANG === 'de') return;
+  document.documentElement.style.setProperty('--t-locked', JSON.stringify(' · ' + T('locked')));
+  if (LANG !== 'de') return;
   const w = document.createTreeWalker(document.getElementById('app'), NodeFilter.SHOW_TEXT);
-  let n; while ((n = w.nextNode())) { const v = n.nodeValue.trim(); if (v && EN[v] !== undefined) n.nodeValue = n.nodeValue.replace(v, EN[v]); }
+  let n; while ((n = w.nextNode())) { const v = n.nodeValue.trim(); if (v && DE[v] !== undefined) n.nodeValue = n.nodeValue.replace(v, DE[v]); }
   document.querySelectorAll('#app [title], #app [aria-label]').forEach(el => {
-    ['title', 'aria-label'].forEach(a => { const v = el.getAttribute(a); if (v && EN[v] !== undefined) el.setAttribute(a, EN[v]); });
+    ['title', 'aria-label'].forEach(a => { const v = el.getAttribute(a); if (v && DE[v] !== undefined) el.setAttribute(a, DE[v]); });
   });
 }
 function h(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = T(text); return e; }
@@ -850,7 +846,7 @@ const slots = Array.from({ length: MAXL }, (_, i) => {
   video.muted = true; video.playsInline = true; video.loop = true; video.autoplay = true;
   video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
   document.body.appendChild(video);
-  const s = { i, type: 'test', canvas, ctx: canvas.getContext('2d'), video, stream: null, url: null, w: 1280, h: 720, status: T('Testbild'),
+  const s = { i, type: 'test', canvas, ctx: canvas.getContext('2d'), video, stream: null, url: null, w: 1280, h: 720, status: T('Test pattern'),
               tex: null, label: LABELS[i], color: COLORS[i],
               bitmap: null, pending: null, dirty: false, origW: 0, origH: 0, subUUID: '', fill: [0, 0, 0] };
   const upd = () => { if (s.type !== 'test' && video.videoWidth) { s.w = video.videoWidth; s.h = video.videoHeight; s.status = `${s.name || s.type} · ${s.w}×${s.h}`; refreshStatus(); } };
@@ -871,7 +867,7 @@ function stopSlot(s) {
 }
 function useTest(i, status) {
   const s = slots[i]; stopSlot(s);
-  s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status || 'Testbild');
+  s.type = 'test'; s.w = 1280; s.h = 720; s.status = T(status || 'Test pattern');
   state.layers[i].srcType = 'test';
 }
 // Testbild als Platzhalter, die gewählte Quellenart bleibt stehen (z. B. „Fenster / Bildschirm“), damit man neu verbinden kann
@@ -885,7 +881,7 @@ function attachStream(i, stream, type, name) {
   state.layers[i].srcType = type;
   s.video.srcObject = stream;
   s.video.play().catch(() => {});
-  stream.getVideoTracks().forEach(t => t.onended = () => { placeholder(i, 'Aufnahme beendet – mit „Fenster / Bildschirm wählen“ neu starten'); syncUI(); });
+  stream.getVideoTracks().forEach(t => t.onended = () => { placeholder(i, 'Capture ended – restart with “Choose window / screen”'); syncUI(); });
 }
 async function connectCamera(i) {
   const L = state.layers[i];
@@ -897,13 +893,13 @@ async function connectCamera(i) {
     L.deviceId = tr.getSettings().deviceId || L.deviceId;
     attachStream(i, stream, 'camera', tr.label || 'Kamera');
     await refreshDevices();
-  } catch (e) { placeholder(i, Tf('Kamera-Fehler: {0}', e.name + (e.message ? ' – ' + e.message : ''))); }
+  } catch (e) { placeholder(i, Tf('Camera error: {0}', e.name + (e.message ? ' – ' + e.message : ''))); }
   syncUI(); save();
 }
 async function connectScreen(i) {
   const md = navigator.mediaDevices;
   if (!md || !md.getDisplayMedia) {
-    placeholder(i, 'Fenster-Aufnahme wird von diesem Browser nicht unterstützt (getDisplayMedia). Bitte Chrome oder Safari verwenden.');
+    placeholder(i, 'Window capture is not supported by this browser (getDisplayMedia). Please use Chrome or Safari.');
     syncUI(); return;
   }
   try {
@@ -911,11 +907,11 @@ async function connectScreen(i) {
     attachStream(i, stream, 'screen', stream.getVideoTracks()[0].label || 'Bildschirm');
   } catch (e) {
     const hint = /user gesture|user activation/i.test(e.message)
-      ? T(' – der Browser verlangt einen direkten Klick auf den Button')
+      ? T(' – the browser requires a direct click on the button')
       : e.name === 'NotAllowedError'
-      ? T(' – Auswahl abgebrochen oder Bildschirmaufnahme nicht erlaubt (macOS: Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme → Browser aktivieren, danach Browser neu starten)')
+      ? T(' – selection cancelled or screen recording not allowed (macOS: System Settings → Privacy & Security → Screen & System Audio Recording → enable the browser, then restart it)')
       : '';
-    placeholder(i, Tf('Fenster-Aufnahme fehlgeschlagen: {0}{1}. Mit „Fenster / Bildschirm wählen“ erneut versuchen.', e.name, hint));
+    placeholder(i, Tf('Window capture failed: {0}{1}. Try again with “Choose window / screen”.', e.name, hint));
   }
   syncUI(); save();
 }
@@ -929,7 +925,7 @@ function connectFile(i, file) {
     s.type = 'image'; s.kind = 'image';
     const img = new Image();
     img.onload = () => { s.img = img; s.w = img.naturalWidth; s.h = img.naturalHeight; s.dirty = true; s.status = `${file.name} · ${s.w}×${s.h}`; refreshStatus(); syncUI(); };
-    img.onerror = () => { placeholder(i, Tf('Bild konnte nicht geladen werden: {0}', file.name)); syncUI(); };
+    img.onerror = () => { placeholder(i, Tf('Could not load image: {0}', file.name)); syncUI(); };
     img.src = s.url;
   } else {                  // Video: loopt automatisch, Transport über Play/Pause und Zeitleiste
     s.type = 'file'; s.kind = 'video';
@@ -944,13 +940,13 @@ function bridgeURL() { return location.protocol === 'http:' && location.port ===
 function bridgeSend(o) { if (bridge.ws && bridge.ws.readyState === 1) bridge.ws.send(JSON.stringify(o)); }
 function bridgeStatus() {
   if (bridge.statusEl) bridge.statusEl.textContent = bridge.ok
-    ? Tf('Brücke verbunden · {0} Syphon-Server gefunden', bridge.servers.length)
-    : T(!IS_LOCAL ? 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).'
-      : IS_MAC ? 'Brücke nicht verbunden – im Ordner „bridge“ ./syphon-bridge starten (oder start.command)'
-               : 'Die Syphon-Brücke läuft nur unter macOS (Syphon gibt es nur dort). Kamera/Virtual Cam, Fenster-Aufnahme und Videodatei funktionieren überall.');
+    ? Tf('Bridge connected · {0} Syphon servers found', bridge.servers.length)
+    : T(!IS_LOCAL ? 'Syphon is only available offline – run the sim locally (start.command, macOS).'
+      : IS_MAC ? 'Bridge not connected – start ./syphon-bridge in the “bridge” folder (or start.command)'
+               : 'The Syphon bridge runs on macOS only (Syphon exists only there). Camera / virtual cam, window capture and video files work everywhere.');
   if (bridge.outEl) {
     const act = ['master', 'view'].filter(k => bridge.out[k]).map(k => '„' + state.out[k].name + '“');
-    bridge.outEl.textContent = act.length ? Tf('Läuft als Syphon-Server: {0}', act.join(', ')) : T('Ausgabe aus');
+    bridge.outEl.textContent = act.length ? Tf('Running as Syphon server: {0}', act.join(', ')) : T('Output off');
   }
   syncUI();
 }
@@ -963,10 +959,10 @@ function ensureSub(i, force) {
   const L = state.layers[i], s = slots[i];
   if (s.type !== 'syphon' || !bridge.ok) return;
   const sv = findServer(L);
-  if (!sv) { s.subUUID = ''; s.status = L.syphonName ? Tf('Server „{0}“ nicht gefunden', L.syphonName) : T('Server wählen …'); refreshStatus(); return; }
+  if (!sv) { s.subUUID = ''; s.status = L.syphonName ? Tf('Server “{0}” not found', L.syphonName) : T('Choose server …'); refreshStatus(); return; }
   if (force || s.subUUID !== sv.uuid) {
     L.syphonUUID = sv.uuid; L.syphonApp = sv.app; L.syphonName = sv.name;
-    s.subUUID = sv.uuid; s.status = Tf('{0} · verbinde …', serverLabel(sv));
+    s.subUUID = sv.uuid; s.status = Tf('{0} · connecting …', serverLabel(sv));
     bridgeSend({ cmd: 'subscribe', slot: i, uuid: sv.uuid, maxWidth: L.syphonRes, fps: 30 });
     refreshStatus();
   }
@@ -975,7 +971,7 @@ function connectSyphon(i) {
   const s = slots[i], L = state.layers[i];
   stopSlot(s);
   s.type = 'syphon'; s.name = 'Syphon'; s.w = 1280; s.h = 720;
-  s.status = T(!IS_LOCAL ? 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).' : bridge.ok ? 'Server wählen …' : 'Brücke nicht verbunden');
+  s.status = T(!IS_LOCAL ? 'Syphon is only available offline – run the sim locally (start.command, macOS).' : bridge.ok ? 'Choose server …' : 'Bridge not connected');
   L.srcType = 'syphon';
   if (bridge.ok) { bridgeSend({ cmd: 'list' }); ensureSub(i, true); }
   syncUI(); save();
@@ -984,7 +980,7 @@ function renderServers() {
   serverSels.forEach((sel, i) => {
     const L = state.layers[i];
     sel.textContent = '';
-    const o0 = h('option', null, bridge.ok ? '— Server wählen —' : '— Brücke nicht verbunden —'); o0.value = ''; sel.append(o0);
+    const o0 = h('option', null, bridge.ok ? '— choose server —' : '— bridge not connected —'); o0.value = ''; sel.append(o0);
     bridge.servers.forEach(v => { const o = h('option', null, serverLabel(v)); o.value = v.uuid; sel.append(o); });
     const f = findServer(L); sel.value = f ? f.uuid : '';
   });
@@ -1027,7 +1023,7 @@ function bridgeConnect() {
       syncUI();
     } else if (m.type === 'out') { bridge.out[m.id === 1 ? 'view' : 'master'] = !!m.active; bridgeStatus(); }
     else if (m.type === 'error') {
-      const msg = Tf('Fehler: {0}', T(BRIDGE_ERR[m.code] || m.message));
+      const msg = Tf('Error: {0}', T(BRIDGE_ERR[m.code] || m.message));
       if (m.slot != null && slots[m.slot]) { slots[m.slot].status = msg; refreshStatus(); }
       else if (bridge.outEl) bridge.outEl.textContent = msg;
     }
@@ -1052,9 +1048,9 @@ function drawSyphonPlaceholder(s, key) {
   c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = s.color; c.font = 'bold 200px -apple-system, Helvetica, Arial'; c.fillText('SYPHON', w / 2, 230);
   c.fillStyle = '#e7e9ee'; c.font = 'bold 56px -apple-system, Helvetica, Arial';
-  const lines = key === 'hosted' ? [T('NUR OFFLINE VERFÜGBAR'), T('Lokal starten (macOS): start.command'), 'github.com/sonarkon/Dome-Sim']
-    : key === 'nobridge' ? [T('Brücke nicht gestartet'), T('start.command ausführen')]
-    : [T('Warte auf Syphon-Server …')];
+  const lines = key === 'hosted' ? [T('AVAILABLE OFFLINE ONLY'), T('Run locally (macOS): start.command'), 'github.com/sonarkon/Dome-Sim']
+    : key === 'nobridge' ? [T('Bridge not running'), T('run start.command')]
+    : [T('Waiting for a Syphon server …')];
   lines.forEach((ln, i) => {
     c.font = (i === 0 ? 'bold 62px' : '40px') + ' -apple-system, Helvetica, Arial';
     c.fillStyle = i === 0 ? '#e7e9ee' : '#9aa3b5';
@@ -1083,10 +1079,10 @@ function drawTest(s, t) {
       if (e !== 0 && e % 30 === 0) { c.fillStyle = '#8a91a0'; c.textAlign = 'left'; c.fillText(e + '°', 8, y - 10); c.textAlign = 'center'; }
     }
     c.strokeStyle = s.color; c.lineWidth = 8; c.strokeRect(4, 4, w - 8, hh - 8);
-    c.fillStyle = s.color; font(46); c.fillText(T('VORNE (Azimut 0°) – Horizont = Mittellinie'), w / 2, hh / 2 - 36);
+    c.fillStyle = s.color; font(46); c.fillText(T('FRONT (azimuth 0°) – horizon = center line'), w / 2, hh / 2 - 36);
     font(250); c.fillText(s.label, w / 2, hh * 0.27);
-    font(30); c.fillStyle = '#e7e9ee'; c.fillText(T('ZENIT ↑ (oberer Rand)'), w / 4, 30);
-    c.fillText(T('HINTEN (±180°)'), 120, hh / 2 - 36); c.fillText(T('HINTEN (±180°)'), w - 120, hh / 2 - 36);
+    font(30); c.fillStyle = '#e7e9ee'; c.fillText(T('ZENITH ↑ (top edge)'), w / 4, 30);
+    c.fillText(T('BACK (±180°)'), 120, hh / 2 - 36); c.fillText(T('BACK (±180°)'), w - 120, hh / 2 - 36);
     const x = ((t * 0.08) % 1) * w; c.globalAlpha = 0.8; c.fillStyle = s.color; c.fillRect(x - 6, 0, 12, hh); c.globalAlpha = 1;
     return;
   }
@@ -1120,14 +1116,14 @@ function drawTest(s, t) {
     c.beginPath(); c.arc(cx, cy, R * 0.9, 0, TAU); c.stroke(); c.setLineDash([]);
     c.strokeStyle = s.color; c.lineWidth = 8; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
     // Himmelsrichtungen (aus Sicht des Publikums, Blick nach vorne = Azimut 0°)
-    radial(T('VORNE'), 0, R - 62, 30, s.color);
-    radial(T('RECHTS'), 90, R - 62, 24, '#e7e9ee');
-    radial(T('HINTEN'), 180, R - 62, 24, '#e7e9ee');
-    radial(T('LINKS'), 270, R - 62, 24, '#e7e9ee');
-    radial(T('Rand = Horizont 0°'), 180, R - 100, 18, '#9aa3b5', '600');
+    radial(T('FRONT'), 0, R - 62, 30, s.color);
+    radial(T('RIGHT'), 90, R - 62, 24, '#e7e9ee');
+    radial(T('BACK'), 180, R - 62, 24, '#e7e9ee');
+    radial(T('LEFT'), 270, R - 62, 24, '#e7e9ee');
+    radial(T('Edge = horizon 0°'), 180, R - 100, 18, '#9aa3b5', '600');
     // Zenit
     c.fillStyle = s.color; font(170); c.fillText(s.label, cx, cy - 8);
-    font(18, '600'); c.fillStyle = '#9aa3b5'; c.fillText(T('Zenit 90°'), cx, cy + 104);
+    font(18, '600'); c.fillStyle = '#9aa3b5'; c.fillText(T('Zenith 90°'), cx, cy + 104);
     // rotierender Zeiger startet vorne (unten) und läuft nach rechts
     const a = t * 0.6; c.strokeStyle = s.color; c.globalAlpha = 0.8; c.lineWidth = 10;
     c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * R, cy + Math.cos(a) * R); c.stroke(); c.globalAlpha = 1;
@@ -1145,10 +1141,10 @@ function drawTest(s, t) {
   c.lineWidth = 14; c.strokeRect(7, 7, w - 14, hh - 14);
   c.fillStyle = s.color; font(300); c.textAlign = 'center'; c.fillText(s.label, w / 2, hh / 2 + 10);
   font(40); c.fillStyle = '#e7e9ee';
-  c.textAlign = 'left'; c.fillText(T('↖ OBEN LINKS'), 34, 52);
-  c.textAlign = 'right'; c.fillText(T('OBEN RECHTS ↗'), w - 34, 52);
-  c.textAlign = 'left'; c.fillText(T('UNTEN LINKS'), 34, hh - 50);
-  c.textAlign = 'right'; c.fillText(T('UNTEN RECHTS'), w - 34, hh - 50);
+  c.textAlign = 'left'; c.fillText(T('↖ TOP LEFT'), 34, 52);
+  c.textAlign = 'right'; c.fillText(T('TOP RIGHT ↗'), w - 34, 52);
+  c.textAlign = 'left'; c.fillText(T('BOTTOM LEFT'), 34, hh - 50);
+  c.textAlign = 'right'; c.fillText(T('BOTTOM RIGHT'), w - 34, hh - 50);
   const x = ((t * 0.12) % 1) * w;
   c.fillStyle = s.color; c.globalAlpha = 0.85; c.fillRect(x - 10, 0, 20, hh); c.globalAlpha = 1;
 }
@@ -1236,8 +1232,8 @@ function renderDevices() {
   deviceSels.forEach((sel, i) => {
     const cur = state.layers[i].deviceId;
     sel.textContent = '';
-    const o0 = h('option', null, devices.length ? 'Standardkamera' : '— zuerst „Geräte laden“ —'); o0.value = ''; sel.append(o0);
-    devices.forEach((d, n) => { const o = h('option', null, d.label || Tf('Kamera {0}', n + 1)); o.value = d.deviceId; sel.append(o); });
+    const o0 = h('option', null, devices.length ? 'Default camera' : '— load devices first —'); o0.value = ''; sel.append(o0);
+    devices.forEach((d, n) => { const o = h('option', null, d.label || Tf('Camera {0}', n + 1)); o.value = d.deviceId; sel.append(o); });
     sel.value = cur;
   });
 }
@@ -1324,15 +1320,15 @@ function buildLayerList(parent) {
     const L = state.layers[id];
     const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm');
     el.dataset.id = id;
-    const grip = h('span', 'grip'); grip.innerHTML = ICON.grip; grip.title = T('Ziehen, um die Reihenfolge zu ändern');
+    const grip = h('span', 'grip'); grip.innerHTML = ICON.grip; grip.title = T('Drag to change the order');
     el.addEventListener('pointerdown', e => startRowDrag(e, id, el));
     dot.style.background = COLORS[id];
     const btn = (html, title, fn) => { const b = h('button', 'ib'); b.innerHTML = html; b.title = T(title); b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; };
-    const eye = btn(ICON.eye, 'Sichtbar / ausgeblendet', () => { L.on = !L.on; syncUI(); save(); });
-    const lock = btn(ICON.unlock, 'Sperren / entsperren', () => { L.locked = !L.locked; syncUI(); save(); });
-    const up = btn(ICON.up, 'Nach oben (vor die anderen)', () => moveLayer(id, 1));
-    const dn = btn(ICON.down, 'Nach unten', () => moveLayer(id, -1));
-    const del = btn(ICON.x, 'Layer löschen', () => removeLayer(id));
+    const eye = btn(ICON.eye, 'Visible / hidden', () => { L.on = !L.on; syncUI(); save(); });
+    const lock = btn(ICON.unlock, 'Lock / unlock', () => { L.locked = !L.locked; syncUI(); save(); });
+    const up = btn(ICON.up, 'Move up (in front of the others)', () => moveLayer(id, 1));
+    const dn = btn(ICON.down, 'Move down', () => moveLayer(id, -1));
+    const del = btn(ICON.x, 'Delete layer', () => removeLayer(id));
     top.append(grip, dot, nm, eye, lock, up, dn, del);
     const bot = h('div', 'bot'), bsel = h('select'), rng = h('input'), val = h('span', 'v');
     BLEND_OPTS.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; bsel.append(o); });
@@ -1346,7 +1342,7 @@ function buildLayerList(parent) {
     el.addEventListener('click', () => { if (el.dataset.justDragged) return; selectLayer(id); });
     rows[id] = { el, nm, eye, lock, up, dn, del, bsel, rng, val };
   }
-  addBtn = h('button', 'btn', '+ Layer hinzufügen');
+  addBtn = h('button', 'btn', '+ Add layer');
   addBtn.style.marginTop = '4px';
   addBtn.addEventListener('click', addLayer);
   parent.append(addBtn);
@@ -1409,48 +1405,48 @@ function buildLayer(i) {
   syncs.push(() => card.classList.toggle('locked', !!L.locked));
   const body = h('div', 'lockable'); card.append(body);
 
-  body.append(h('h4', null, 'Quelle'));
-  const srcSel = mkSelect(body, 'Typ', L, 'srcType', [
-    ['test', 'Testbild'], ['syphon', IS_LOCAL ? 'Syphon (über Brücke)' : 'Syphon (nur offline)'], ['camera', 'Kamera / Virtual Cam'], ['screen', 'Fenster / Bildschirm'], ['file', 'Video- oder Bilddatei'],
+  body.append(h('h4', null, 'Source'));
+  const srcSel = mkSelect(body, 'Type', L, 'srcType', [
+    ['test', 'Test pattern'], ['syphon', IS_LOCAL ? 'Syphon (via bridge)' : 'Syphon (offline only)'], ['camera', 'Camera / virtual cam'], ['screen', 'Window / screen'], ['file', 'Video / image file'],
   ], () => {
     if (L.srcType === 'test') useTest(i);
     else if (L.srcType === 'syphon') connectSyphon(i);
     else if (L.srcType === 'camera') connectCamera(i);
-    else if (L.srcType === 'screen') { placeholder(i, 'Bereit – unten auf „Fenster / Bildschirm wählen …“ klicken (der Browser verlangt dafür einen direkten Klick).'); }
-    else { useTest(i, 'Datei wählen …'); L.srcType = 'file'; }
+    else if (L.srcType === 'screen') { placeholder(i, 'Ready – click “Choose window / screen …” below (the browser requires a direct click).'); }
+    else { useTest(i, 'Choose file …'); L.srcType = 'file'; }
   });
-  const tk = mkSelect(body, 'Testbild', L, 'testKind', [[0, '16:9 Rechteck'], [1, '2:1 Panorama (Equirect)'], [2, '1:1 Domemaster (Fisheye)']], () => {
+  const tk = mkSelect(body, 'Test pattern', L, 'testKind', [[0, '16:9 rectangle'], [1, '2:1 panorama (equirect)'], [2, '1:1 domemaster (fisheye)']], () => {
     if (L.testKind) L.mapping = L.testKind === 1 ? 3 : 4; else if (L.mapping >= 3) L.mapping = 0;
     applyDefaultsFor(L);
   });
   const syRow = h('div', 'row two'), sySel = h('select');
-  syRow.append(h('label', null, 'Syphon-Server'), sySel); body.append(syRow);
+  syRow.append(h('label', null, 'Syphon server'), sySel); body.append(syRow);
   sySel.addEventListener('change', () => {
     const sv = bridge.servers.find(v => v.uuid === sySel.value);
     if (sv) { L.syphonUUID = sv.uuid; L.syphonApp = sv.app; L.syphonName = sv.name; ensureSub(i, true); save(); }
   });
   serverSels[i] = sySel;
-  const syRes = mkSelect(body, 'Übertragung', L, 'syphonRes', [[960, '960 px breit'], [1280, '1280 px breit'], [1920, '1920 px breit'], [2560, '2560 px breit'], [0, 'Original']], () => ensureSub(i, true));
-  const syBtn = mkBtns(body, [['Server-Liste aktualisieren', () => bridgeSend({ cmd: 'list' })]]);
-  const syNote = h('div', 'status notice', 'Syphon braucht die lokale Brücke (nur macOS). Diese Online-Version kann sie nicht nutzen – von GitHub laden und start.command ausführen.');
+  const syRes = mkSelect(body, 'Transfer', L, 'syphonRes', [[960, '960 px wide'], [1280, '1280 px wide'], [1920, '1920 px wide'], [2560, '2560 px wide'], [0, 'Original']], () => ensureSub(i, true));
+  const syBtn = mkBtns(body, [['Refresh server list', () => bridgeSend({ cmd: 'list' })]]);
+  const syNote = h('div', 'status notice', 'Syphon needs the local bridge (macOS only). This online version cannot use it – download it from GitHub and run start.command.');
   body.append(syNote);
   const devRow = h('div', 'row two'), devSel = h('select');
-  devRow.append(h('label', null, 'Gerät'), devSel); body.append(devRow);
+  devRow.append(h('label', null, 'Device'), devSel); body.append(devRow);
   devSel.addEventListener('change', () => { L.deviceId = devSel.value; connectCamera(i); });
   deviceSels[i] = devSel;
-  const camBtns = mkBtns(body, [['Geräte laden', async () => {
+  const camBtns = mkBtns(body, [['Load devices', async () => {
     try { const st = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); st.getTracks().forEach(t => t.stop()); } catch (e) {}
     refreshDevices();
-  }], ['Neu verbinden', () => connectCamera(i)]]);
-  const scrBtns = mkBtns(body, [['Fenster / Bildschirm wählen …', () => connectScreen(i)]]);
+  }], ['Reconnect', () => connectCamera(i)]]);
+  const scrBtns = mkBtns(body, [['Choose window / screen …', () => connectScreen(i)]]);
   const fileRow = h('div', 'row two'), fin = h('input'); fin.type = 'file'; fin.accept = 'video/*,image/*';
   fin.addEventListener('change', () => connectFile(i, fin.files[0]));
-  fileRow.append(h('label', null, 'Datei'), fin); body.append(fileRow);
+  fileRow.append(h('label', null, 'File'), fin); body.append(fileRow);
   const st = h('div', 'status'); body.append(st); statusEls[i] = st;
   // Transport für Videodateien: Play/Pause + Zeitleiste (Scrubben), Zeit
   const trn = h('div', 'transport');
   const ppb = h('button', 'btn pp'); ppb.type = 'button';
-  const tl = h('input'); tl.type = 'range'; tl.min = 0; tl.max = 1; tl.step = 0.01; tl.value = 0; tl.title = T('Zeitleiste');
+  const tl = h('input'); tl.type = 'range'; tl.min = 0; tl.max = 1; tl.step = 0.01; tl.value = 0; tl.title = T('Timeline');
   const tt = h('span', 'tt', '0:00 / 0:00');
   trn.append(ppb, tl, tt); body.append(trn);
   const fmtT = x => { x = Math.max(0, x || 0); const m = Math.floor(x / 60), sec = Math.floor(x % 60); return m + ':' + String(sec).padStart(2, '0'); };
@@ -1464,7 +1460,7 @@ function buildLayer(i) {
     if (!scrubbing) tl.value = v.currentTime;
     tt.textContent = fmtT(v.currentTime) + ' / ' + fmtT(dur);
     const ic = v.paused ? ICON.play : ICON.pause;
-    if (ppb._i !== ic) { ppb.innerHTML = ic; ppb._i = ic; ppb.title = T(v.paused ? 'Abspielen' : 'Pause'); }
+    if (ppb._i !== ic) { ppb.innerHTML = ic; ppb._i = ic; ppb.title = T(v.paused ? 'Play' : 'Pause'); }
   };
   ppb.addEventListener('click', () => { const v = slots[i].video; if (v.paused) v.play().catch(() => {}); else v.pause(); updTransport(); });
   tl.addEventListener('pointerdown', () => { scrubbing = true; });
@@ -1485,7 +1481,7 @@ function buildLayer(i) {
     fileRow.classList.toggle('hide', L.srcType !== 'file');
   });
 
-  body.append(h('h4', null, 'Zuschnitt der Quelle'));
+  body.append(h('h4', null, 'Source crop'));
   const gap = 0.02;
   // Regler zeigen, wie viel von jeder Seite abgeschnitten wird (0 % = ganzes Bild)
   const cp = {
@@ -1494,22 +1490,22 @@ function buildLayer(i) {
     get t() { return L.crop[1]; }, set t(v) { L.crop[1] = clamp(v, 0, L.crop[3] - gap); },
     get b() { return 1 - L.crop[3]; }, set b(v) { L.crop[3] = clamp(1 - v, L.crop[1] + gap, 1); },
   };
-  [['Links abschn.', 'l'], ['Rechts abschn.', 'r'], ['Oben abschn.', 't'], ['Unten abschn.', 'b']].forEach(([n, k]) =>
+  [['Crop left', 'l'], ['Crop right', 'r'], ['Crop top', 't'], ['Crop bottom', 'b']].forEach(([n, k]) =>
     mkSlider(body, n, cp, k, 0, 0.95, 0.005, { fmt: v => Math.round(v * 100) + '%' }));
   const cropInfo = h('div', 'status'); body.append(cropInfo);
   syncs.push(() => {
     const sl = slots[i], cw = L.crop[2] - L.crop[0], ch = L.crop[3] - L.crop[1];
-    cropInfo.textContent = Tf('Ausschnitt: {0} % × {1} %', Math.round(cw * 100), Math.round(ch * 100)) + (sl.w ? Tf('  ({0} × {1} px)', Math.round(sl.w * cw), Math.round(sl.h * ch)) : '');
+    cropInfo.textContent = Tf('Region: {0} % × {1} %', Math.round(cw * 100), Math.round(ch * 100)) + (sl.w ? Tf('  ({0} × {1} px)', Math.round(sl.w * cw), Math.round(sl.h * ch)) : '');
   });
   // Voreinstellungen als Symbole: gefüllt = sichtbarer Teil der Quelle
   const presetRow = h('div', 'btns icons');
   const cropIcon = (x, y, w2, h2) => `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="${x}" y="${y}" width="${w2}" height="${h2}" fill="currentColor" opacity=".85"/></svg>`;
   const presets = [
-    ['Ganzes Bild', [0, 0, 1, 1], cropIcon(2.5, 3.5, 11, 9)],
-    ['Linke Hälfte', [0, 0, 0.5, 1], cropIcon(2.5, 3.5, 5.5, 9)],
-    ['Rechte Hälfte', [0.5, 0, 1, 1], cropIcon(8, 3.5, 5.5, 9)],
-    ['Obere Hälfte', [0, 0, 1, 0.5], cropIcon(2.5, 3.5, 11, 4.5)],
-    ['Untere Hälfte', [0, 0.5, 1, 1], cropIcon(2.5, 8, 11, 4.5)],
+    ['Whole image', [0, 0, 1, 1], cropIcon(2.5, 3.5, 11, 9)],
+    ['Left half', [0, 0, 0.5, 1], cropIcon(2.5, 3.5, 5.5, 9)],
+    ['Right half', [0.5, 0, 1, 1], cropIcon(8, 3.5, 5.5, 9)],
+    ['Top half', [0, 0, 1, 0.5], cropIcon(2.5, 3.5, 11, 4.5)],
+    ['Bottom half', [0, 0.5, 1, 1], cropIcon(2.5, 8, 11, 4.5)],
   ];
   const presetBtns = presets.map(([title, c, icon]) => {
     const b = h('button', 'btn'); b.type = 'button'; b.title = T(title); b.setAttribute('aria-label', T(title)); b.innerHTML = icon;
@@ -1519,30 +1515,30 @@ function buildLayer(i) {
   body.append(presetRow);
   syncs.push(() => presetBtns.forEach(([b, c]) => b.classList.toggle('on', c.every((v, k) => Math.abs(v - L.crop[k]) < 0.004))));
   const fl = h('div', 'chk'); body.append(fl);
-  mkCheck(body, 'Horizontal spiegeln', L, 'flipX');
-  mkCheck(body, 'Vertikal spiegeln', L, 'flipY');
+  mkCheck(body, 'Flip horizontally', L, 'flipX');
+  mkCheck(body, 'Flip vertically', L, 'flipY');
   fl.remove();
 
-  body.append(h('h4', null, 'Platzierung auf der Kuppel'));
+  body.append(h('h4', null, 'Placement on dome'));
   mkSelect(body, 'Mapping', L, 'mapping', [
-    [0, 'Flach – Screen vor dem Publikum (Viereck)'],
-    [1, 'Viereck in der Domemaster-Ebene'],
-    [2, 'Viereck in Azimut/Elevation'],
-    [3, 'Panorama-Band 360° (Equirect)'],
-    [4, 'Domemaster-Vollbild (1:1 Fisheye)'],
+    [0, 'Flat – screen in front of audience (quad)'],
+    [1, 'Quad in domemaster plane'],
+    [2, 'Quad in azimuth/elevation'],
+    [3, 'Panorama band 360° (equirect)'],
+    [4, 'Full domemaster (1:1 fisheye)'],
   ], () => applyDefaultsFor(L));
-  mkSlider(body, 'Azimut / Dreh.', L, 'az', -180, 180, 0.5, { fmt: v => v.toFixed(1) + '°' });
+  mkSlider(body, 'Azimuth / rot.', L, 'az', -180, 180, 0.5, { fmt: v => v.toFixed(1) + '°' });
   mkSlider(body, 'Elevation', L, 'el', -90, 90, 0.5, { fmt: v => v.toFixed(1) + '°' });
-  mkSlider(body, 'Größe (Breite)', L, 'size', 3, 360, 0.5, { fmt: v => v.toFixed(0) + '°' });
+  mkSlider(body, 'Size (width)', L, 'size', 3, 360, 0.5, { fmt: v => v.toFixed(0) + '°' });
   mkSlider(body, 'Roll', L, 'roll', -180, 180, 0.5, { fmt: v => v.toFixed(1) + '°' });
-  mkCheck(body, 'Seitenverhältnis folgt Quelle', L, 'autoAspect', () => autoAspect(i));
-  mkSlider(body, 'Seitenverh.', L, 'aspect', 0.2, 6, 0.01, { fmt: v => v.toFixed(2), disabled: () => L.autoAspect });
-  const kV = mkSlider(body, 'Trapez vertikal', L, 'keyV', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
-  const kH = mkSlider(body, 'Trapez horizontal', L, 'keyH', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
-  const kTip = h('div', 'status', 'Trapez vertikal: + = oben schmaler, − = oben breiter. Trapez horizontal: + = rechte Kante niedriger, − = linke Kante niedriger. Feinschliff über die Eckpunkte im Viewport.');
+  mkCheck(body, 'Aspect follows source', L, 'autoAspect', () => autoAspect(i));
+  mkSlider(body, 'Aspect', L, 'aspect', 0.2, 6, 0.01, { fmt: v => v.toFixed(2), disabled: () => L.autoAspect });
+  const kV = mkSlider(body, 'Keystone vertical', L, 'keyV', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
+  const kH = mkSlider(body, 'Keystone horizontal', L, 'keyH', -0.9, 0.9, 0.01, { fmt: v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%' });
+  const kTip = h('div', 'status', 'Keystone vertical: + = narrower at top, − = wider at top. Keystone horizontal: + = right edge lower, − = left edge lower. Fine-tune with the corner handles in the viewport.');
   body.append(kTip);
   syncs.push(() => { const off = L.mapping >= 3; [kV, kH].forEach(k => k.inp.parentElement.classList.toggle('hide', off)); kTip.classList.toggle('hide', off); });
-  mkBtns(body, [['Verzerrung zurücksetzen', () => { L.ox.fill(0); L.oy.fill(0); L.keyH = 0; L.keyV = 0; syncUI(); save(); }]]);
+  mkBtns(body, [['Reset distortion', () => { L.ox.fill(0); L.oy.fill(0); L.keyH = 0; L.keyV = 0; syncUI(); save(); }]]);
   const info = h('div', 'info'); body.append(info);
   syncs.push(() => {
     const G = geom(L), R = state.dome.diameter / 2, s = slots[i];
@@ -1550,40 +1546,40 @@ function buildLayer(i) {
     let t;
     if (L.mapping === 4) {
       const ppd = srcW / clamp(L.size, 5, 360);
-      t = Tf('Fisheye-Vollbild: Bildrand = {0}° Zenitdistanz · {1} px/° (Quelle {2} px)', clamp(L.size, 5, 360).toFixed(0), ppd.toFixed(1), Math.round(srcW));
+      t = Tf('Full fisheye: image edge = {0}° zenith distance · {1} px/° (source {2} px)', clamp(L.size, 5, 360).toFixed(0), ppd.toFixed(1), Math.round(srcW));
     } else if (L.mapping === 3) {
       const wd = L.size, hd = L.size / L.aspect, ppd = srcW / wd;
-      t = Tf('Panorama {0}° × {1}° · {2} px/° (Quelle {3} px)', wd.toFixed(0), hd.toFixed(0), ppd.toFixed(1), Math.round(srcW));
+      t = Tf('Panorama {0}° × {1}° · {2} px/° (source {3} px)', wd.toFixed(0), hd.toFixed(0), ppd.toFixed(1), Math.round(srcW));
     } else if (G.ok) {
       const ang = (a, b) => Math.acos(clamp(V.dot(uvToDir(G, L, ...a), uvToDir(G, L, ...b)), -1, 1));
       const wd = ang([0, 0.5], [1, 0.5]) * R2D, hd = ang([0.5, 0], [0.5, 1]) * R2D;
-      t = Tf('Winkelgröße {0}° × {1}° ≈ {2} × {3} m an der Kuppel · {4} px/° (Quelle {5} px)', wd.toFixed(0), hd.toFixed(0), (wd * D2R * R).toFixed(1), (hd * D2R * R).toFixed(1), (srcW / wd).toFixed(1), Math.round(srcW));
-    } else t = T('Ungültige Verzerrung – Ecken zurücksetzen');
-    info.textContent = t + T('  ·  Referenz: 4K-Master ≈ 23 px/°, 2K ≈ 11 px/°');
+      t = Tf('Angular size {0}° × {1}° ≈ {2} × {3} m on the dome · {4} px/° (source {5} px)', wd.toFixed(0), hd.toFixed(0), (wd * D2R * R).toFixed(1), (hd * D2R * R).toFixed(1), (srcW / wd).toFixed(1), Math.round(srcW));
+    } else t = T('Invalid distortion – reset corners');
+    info.textContent = t + T('  ·  Reference: 4K master ≈ 23 px/°, 2K ≈ 11 px/°');
   });
-  body.append(h('div', 'status', 'Ecken ziehen = perspektivisch verzerren · Fläche ziehen = verschieben · Alt+Scrollen = skalieren'));
+  body.append(h('div', 'status', 'Drag corners = perspective warp · drag surface = move · Alt+scroll = scale'));
 
-  body.append(h('h4', null, 'Darstellung'));
-  mkSlider(body, 'Deckkraft', L, 'opacity', 0, 1, 0.01, { fmt: v => Math.round(v * 100) + '%' });
+  body.append(h('h4', null, 'Appearance'));
+  mkSlider(body, 'Opacity', L, 'opacity', 0, 1, 0.01, { fmt: v => Math.round(v * 100) + '%' });
   mkSelect(body, 'Blend', L, 'blend', BLEND_OPTS);
   const fmtF = v => Math.round(v * 200) + '%';
-  const fAll = mkSlider(body, 'Randweiche', L, 'feather', 0, 0.5, 0.005, { fmt: fmtF });
-  mkCheck(body, 'Randweiche pro Seite', L, 'feSplit', () => {
+  const fAll = mkSlider(body, 'Edge feather', L, 'feather', 0, 0.5, 0.005, { fmt: fmtF });
+  mkCheck(body, 'Feather per side', L, 'feSplit', () => {
     if (L.feSplit && L.fe.every(v => v === 0)) L.fe.fill(L.feather);
   });
-  const fSides = [['Links', 0], ['Rechts', 1], ['Oben', 2], ['Unten', 3]].map(([n, k]) =>
+  const fSides = [['Left', 0], ['Right', 1], ['Top', 2], ['Bottom', 3]].map(([n, k]) =>
     mkSlider(body, '  ' + T(n), L.fe, k, 0, 0.5, 0.005, { fmt: fmtF }));
-  mkSlider(body, 'Verlauf', L, 'fCurve', 0, 1, 0.01, { fmt: v => T(v < 0.45 ? 'kompakt' : v > 0.55 ? 'weit' : 'normal') });
-  body.append(h('div', 'status', 'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.'));
+  mkSlider(body, 'Falloff', L, 'fCurve', 0, 1, 0.01, { fmt: v => T(v < 0.45 ? 'compact' : v > 0.55 ? 'wide' : 'normal') });
+  body.append(h('div', 'status', 'Edge feather = width of the transition (100 % reaches the image center). Falloff = curve shape: compact keeps the image bright up to near the edge and fades quickly there, wide darkens gently over the whole edge zone.'));
   syncs.push(() => {
     fAll.inp.parentElement.classList.toggle('hide', !!L.feSplit);
     fSides.forEach(f => f.inp.parentElement.classList.toggle('hide', !L.feSplit));
   });
-  body.append(h('h4', null, 'Rand erweitern (Hintergrund füllen)'));
-  mkSelect(body, 'Modus', L, 'extend', [[0, 'Aus'], [1, 'Rand-Pixel strecken'], [2, 'Randfarbe füllen (Median)']]);
-  mkSlider(body, 'Rand-Einzug', L, 'extInset', 0, 0.12, 0.002, { fmt: v => (v * 100).toFixed(1) + '%' });
-  body.append(h('div', 'status', 'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.'));
-  groupify(body, ['Zuschnitt der Quelle', 'Rand erweitern (Hintergrund füllen)']);
+  body.append(h('h4', null, 'Extend edges (fill background)'));
+  mkSelect(body, 'Mode', L, 'extend', [[0, 'Off'], [1, 'Stretch edge pixels'], [2, 'Fill with edge color (median)']]);
+  mkSlider(body, 'Edge inset', L, 'extInset', 0, 0.12, 0.002, { fmt: v => (v * 100).toFixed(1) + '%' });
+  body.append(h('div', 'status', 'For videos on a solid background: the edge is extended over the whole dome. “Edge color” uses the most common color of the image borders (robust against noise); “edge feather” blends the video softly into the background. “Edge inset” reads the color slightly further inside – needed when the source has a thin black border line.'));
+  groupify(body, ['Source crop', 'Extend edges (fill background)']);
   return card;
 }
 const HELP_HTML = {
@@ -1626,21 +1622,21 @@ function applyProjectTitle() {
 function buildPanel() {
   // ───── links: Ebenen ─────
   const brand = h('div', 'brand'); brand.innerHTML = '<b>HOPE</b> Dome Sim';
-  const sw = h('span', 'langsw'); sw.title = T('Sprache');
+  const sw = h('span', 'langsw'); sw.title = T('Language');
   ['de', 'en'].forEach(l => {
     const b = h('button', l === LANG ? 'on' : ''); b.type = 'button'; b.textContent = l.toUpperCase();
     b.addEventListener('click', () => { try { localStorage.setItem(LANG_KEY, l); } catch (e) {} location.reload(); });
     sw.append(b);
   });
   brand.append(sw); panelL.append(brand);
-  const projIn = h('input', 'projname'); projIn.type = 'text'; projIn.placeholder = T('Projektname'); projIn.spellcheck = false;
-  projIn.maxLength = 80; projIn.setAttribute('aria-label', T('Projektname'));
+  const projIn = h('input', 'projname'); projIn.type = 'text'; projIn.placeholder = T('Project name'); projIn.spellcheck = false;
+  projIn.maxLength = 80; projIn.setAttribute('aria-label', T('Project name'));
   projIn.addEventListener('input', () => { state.project = projIn.value; applyProjectTitle(); save(); });
   syncs.push(() => { if (document.activeElement !== projIn) projIn.value = state.project || ''; applyProjectTitle(); });
   panelL.append(projIn);
   const staticSec = title => { const box = h('div', 'staticsec'); box.append(h('div', 'seclabel', title)); panelL.append(box); return box; };
-  buildLayerList(staticSec('Ebenen'));
-  const selBody = staticSec('Layer-Einstellungen');
+  buildLayerList(staticSec('Layers'));
+  const selBody = staticSec('Layer settings');
   for (let i = 0; i < MAXL; i++) { const c = buildLayer(i); selBody.append(c); cards.push(c); }
 
   // ───── rechts: Ausgabe & Ansicht ─────
@@ -1649,44 +1645,44 @@ function buildPanel() {
   // Preset: feste Leiste ganz oben (nicht einklappbar)
   const pb = h('div', 'presetbar'); pb.append(h('div', 'presetlabel', 'Preset')); panelR.append(pb);
   mkBtns(pb, [
-    ['Exportieren', () => {
+    ['Export', () => {
       const a = h('a'); a.download = (projectSlug() ? projectSlug() + '_' : '') + 'hope-dome-sim-preset.json';
       a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' }));
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }],
-    ['Importieren', () => {
+    ['Import', () => {
       const f = h('input'); f.type = 'file'; f.accept = '.json,application/json';
       f.onchange = async () => {
-        try { deepAssign(state, JSON.parse(await f.files[0].text())); state.layers.forEach((L, i) => { if (L.srcType !== 'camera') L.srcType = 'test'; useTest(i); }); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); } catch (e) { alert(Tf('Preset ungültig: {0}', e.message)); }
+        try { deepAssign(state, JSON.parse(await f.files[0].text())); state.layers.forEach((L, i) => { if (L.srcType !== 'camera') L.srcType = 'test'; useTest(i); }); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); } catch (e) { alert(Tf('Invalid preset: {0}', e.message)); }
       }; f.click();
     }],
-    ['Alles zurücksetzen', () => { deepAssign(state, defState()); state.layers.forEach((_, i) => useTest(i)); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); }],
+    ['Reset all', () => { deepAssign(state, defState()); state.layers.forEach((_, i) => useTest(i)); sanitizeOrder(); selectLayer(state.sel); syncUI(); save(); }],
   ]);
 
-  const vb = mkSection(panelR, 'Ansicht & Kuppel');
-  mkSlider(vb, 'Durchmesser', d, 'diameter', 4, 40, 0.5, { fmt: v => v + ' m', onInput: () => { seat.inp.max = (d.diameter / 2 * 0.9).toFixed(1); d.seatDist = Math.min(d.seatDist, d.diameter / 2 * 0.9); } });
-  mkSlider(vb, 'Augenhöhe', d, 'eyeH', 0.4, 2.2, 0.01, { fmt: v => v.toFixed(2) + ' m' });
-  mkSlider(vb, 'Kuppelrand', d, 'spring', 0, 3, 0.01, { fmt: v => v.toFixed(2) + ' m' });
+  const vb = mkSection(panelR, 'View & dome');
+  mkSlider(vb, 'Diameter', d, 'diameter', 4, 40, 0.5, { fmt: v => v + ' m', onInput: () => { seat.inp.max = (d.diameter / 2 * 0.9).toFixed(1); d.seatDist = Math.min(d.seatDist, d.diameter / 2 * 0.9); } });
+  mkSlider(vb, 'Eye height', d, 'eyeH', 0.4, 2.2, 0.01, { fmt: v => v.toFixed(2) + ' m' });
+  mkSlider(vb, 'Dome rim', d, 'spring', 0, 3, 0.01, { fmt: v => v.toFixed(2) + ' m' });
   const offRow = h('div', 'status'); vb.append(offRow);
-  syncs.push(() => { const off = d.eyeH - d.spring; offRow.textContent = Tf('Auge zur Kuppelmitte: {0}{1} m  (Kuppelrand = Höhe über Boden; darunter Rundwand)', off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)); });
-  mkBtns(vb, [['Kuppelrand auf Augenhöhe', () => { d.spring = d.eyeH; syncUI(); save(); }]]);
-  const seat = mkSlider(vb, 'Sitz: Abstand', d, 'seatDist', 0, d.diameter / 2 * 0.9, 0.1, { fmt: v => v.toFixed(1) + ' m' });
+  syncs.push(() => { const off = d.eyeH - d.spring; offRow.textContent = Tf('Eye to dome center: {0}{1} m  (dome rim = height above floor; wall below)', off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)); });
+  mkBtns(vb, [['Dome rim at eye height', () => { d.spring = d.eyeH; syncUI(); save(); }]]);
+  const seat = mkSlider(vb, 'Seat: distance', d, 'seatDist', 0, d.diameter / 2 * 0.9, 0.1, { fmt: v => v.toFixed(1) + ' m' });
   seat.inp.max = (d.diameter / 2 * 0.9).toFixed(1);
-  mkSlider(vb, 'Sitz: Winkel', d, 'seatAng', 0, 360, 1, { fmt: v => v + '° ' + T('(0=vorn)') });
-  mkSelect(vb, 'Linse (Innen)', d, 'lens', [[0, 'Rechtwinklig'], [1, 'Fisheye (equidistant)']]);
+  mkSlider(vb, 'Seat: angle', d, 'seatAng', 0, 360, 1, { fmt: v => v + '° ' + T('(0=front)') });
+  mkSelect(vb, 'Lens (inside)', d, 'lens', [[0, 'Rectilinear'], [1, 'Fisheye (equidistant)']]);
   const fov = { get v() { return d.lens ? cm.fovFish : cm.fovRect; }, set v(x) { if (d.lens) cm.fovFish = clamp(x, 30, 240); else cm.fovRect = clamp(x, 30, 140); } };
-  mkSlider(vb, 'Blickfeld', fov, 'v', 30, 240, 1, { fmt: v => Math.round(v) + '°' });
-  mkSlider(vb, 'Kuppel-Grundhell.', d, 'ambient', 0, 0.3, 0.005, { fmt: v => Math.round(v * 100) + '%' });
-  mkSelect(vb, 'Raster-Auflösung', d, 'gridRes', [[0, 'Grob (45° / 30°)'], [1, 'Normal (30° / 15°)'], [2, 'Fein (15° / 10°)'], [3, 'Sehr fein (10° / 5°)']]);
-  mkSelect(vb, 'Raster-Beschriftung', d, 'gridLabels', [[0, 'Aus'], [1, 'Zellen-IDs (A1 …)'], [2, 'Koordinaten (Azimut/Höhe)']]);
+  mkSlider(vb, 'Field of view', fov, 'v', 30, 240, 1, { fmt: v => Math.round(v) + '°' });
+  mkSlider(vb, 'Dome base light', d, 'ambient', 0, 0.3, 0.005, { fmt: v => Math.round(v * 100) + '%' });
+  mkSelect(vb, 'Grid resolution', d, 'gridRes', [[0, 'Coarse (45° / 30°)'], [1, 'Normal (30° / 15°)'], [2, 'Fine (15° / 10°)'], [3, 'Very fine (10° / 5°)']]);
+  mkSelect(vb, 'Grid labels', d, 'gridLabels', [[0, 'Off'], [1, 'Cell IDs (A1 …)'], [2, 'Coordinates (azimuth/elevation)']]);
   mkBtns(vb, [
-    ['Blick zurücksetzen', () => { Object.assign(cm, defState().cam); syncUI(); save(); }],
-    ['Sitz in die Mitte', () => { d.seatDist = 0; syncUI(); save(); }],
+    ['Reset view', () => { Object.assign(cm, defState().cam); syncUI(); save(); }],
+    ['Seat to center', () => { d.seatDist = 0; syncUI(); save(); }],
   ]);
 
   // Domemaster-Fenster: immer sichtbar, kompakt (Rate + Auflösung in einer Zeile, Raster/Werkzeuge als Schalter)
-  const wb = h('div', 'staticsec'); wb.append(h('div', 'seclabel', 'Domemaster-Fenster')); panelR.append(wb);
-  mkBtns(wb, [['Domemaster in eigenem Fenster öffnen', openDomeWindow]]);
+  const wb = h('div', 'staticsec'); wb.append(h('div', 'seclabel', 'Domemaster window')); panelR.append(wb);
+  mkBtns(wb, [['Open domemaster in its own window', openDomeWindow]]);
   const miniSel = (label, obj, key, opts) => {
     const wrap = h('label', 'mini'); wrap.append(h('span', null, label));
     const sel = h('select');
@@ -1697,8 +1693,8 @@ function buildPanel() {
     wrap.append(sel); return wrap;
   };
   const r2 = h('div', 'row2sel');
-  r2.append(miniSel('Fenster-Rate', state.win, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps'], [120, '120 fps']]),
-            miniSel('Max. Auflösung', state.win, 'max', [[1024, '1024 px'], [2048, '2048 px'], [3072, '3072 px'], [4096, '4096 px']]));
+  r2.append(miniSel('Window rate', state.win, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps'], [120, '120 fps']]),
+            miniSel('Max. resolution', state.win, 'max', [[1024, '1024 px'], [2048, '2048 px'], [3072, '3072 px'], [4096, '4096 px']]));
   wb.append(r2);
   const chips = h('div', 'chips');
   const chip = (label, tip, obj, key) => {
@@ -1708,46 +1704,46 @@ function buildPanel() {
     syncs.push(() => b.classList.toggle('on', !!obj[key]));
     return b;
   };
-  chips.append(chip('Raster', 'Raster im Domemaster-Fenster anzeigen (Stärke und Auflösung wie in der Ansicht)', state.win, 'grid'),
-               chip('Werkzeuge', 'Rahmen, Eckpunkte und Layer-Namen im Domemaster-Fenster anzeigen', state.win, 'tools'));
+  chips.append(chip('Grid', 'Show grid in the domemaster window (strength and resolution as in the view)', state.win, 'grid'),
+               chip('Tools', 'Show frames, corner handles and layer names in the domemaster window', state.win, 'tools'));
   wb.append(chips);
-  domeWin.statusEl = h('div', 'status', 'Kein Fenster geöffnet'); wb.append(domeWin.statusEl);
-  wb.append(h('div', 'status', 'Auf den externen Monitor ziehen, Doppelklick oder F = Vollbild. Taste D öffnet es ebenfalls. Unabhängig vom Show-Modus.'));
+  domeWin.statusEl = h('div', 'status', 'No window open'); wb.append(domeWin.statusEl);
+  wb.append(h('div', 'status', 'Drag it to the external monitor, double-click or F = fullscreen. Key D opens it too. Independent of show mode.'));
 
   const sb = mkSection(panelR, 'Syphon');
   bridge.statusEl = h('div', 'status'); sb.append(bridge.statusEl);
-  mkBtns(sb, [['Brücke neu verbinden', () => { try { bridge.ws && bridge.ws.close(); } catch (e) {} setTimeout(bridgeConnect, 50); }]]);
+  mkBtns(sb, [['Reconnect bridge', () => { try { bridge.ws && bridge.ws.close(); } catch (e) {} setTimeout(bridgeConnect, 50); }]]);
   const outBlock = (key, title, ratio) => {
     const oo = o[key];
     mkCheck(sb, title, oo, 'on', () => { if (oo.on) outStartMsg(key); else bridgeSend({ cmd: 'out_stop', id: OUT_ID[key] }); });
     const row = h('div', 'row two'), inp = h('input'); inp.type = 'text'; inp.value = oo.name;
     inp.style.cssText = 'width:100%;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit';
     inp.addEventListener('change', () => { oo.name = inp.value.trim() || oo.name; if (oo.on) outStartMsg(key); save(); });
-    row.append(h('label', null, 'Servername'), inp); sb.append(row);
-    mkSelect(sb, 'Größe', oo, 'size', ratio === 1
+    row.append(h('label', null, 'Server name'), inp); sb.append(row);
+    mkSelect(sb, 'Size', oo, 'size', ratio === 1
       ? [[512, '512 × 512'], [1024, '1024 × 1024'], [1536, '1536 × 1536'], [2048, '2048 × 2048']]
       : [[960, '960 × 540'], [1280, '1280 × 720'], [1920, '1920 × 1080']]);
   };
-  outBlock('master', 'Domemaster 1:1 (Fisheye) ausgeben', 1);
-  mkCheck(sb, 'Raster im Domemaster-Ausgang', o.master, 'grid');
-  outBlock('view', 'Aktuelle Ansicht (16:9) ausgeben', 0);
-  mkSelect(sb, 'Bildrate', o, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps']]);
-  mkCheck(sb, 'Ausgabe vertikal spiegeln', o, 'flip');
-  bridge.outEl = h('div', 'status', 'Ausgabe aus'); sb.append(bridge.outEl);
-  sb.append(h('div', 'status', 'Rohe Frames über localhost: 1024 px ≈ 4 MB pro Bild, 2048 px ≈ 16 MB.'));
+  outBlock('master', 'Output domemaster 1:1 (fisheye)', 1);
+  mkCheck(sb, 'Grid in domemaster output', o.master, 'grid');
+  outBlock('view', 'Output current view (16:9)', 0);
+  mkSelect(sb, 'Frame rate', o, 'fps', [[15, '15 fps'], [30, '30 fps'], [60, '60 fps']]);
+  mkCheck(sb, 'Flip output vertically', o, 'flip');
+  bridge.outEl = h('div', 'status', 'Output off'); sb.append(bridge.outEl);
+  sb.append(h('div', 'status', 'Raw frames over localhost: 1024 px ≈ 4 MB per frame, 2048 px ≈ 16 MB.'));
   const det = h('details');
   det.innerHTML = HELP_HTML[LANG];
   sb.append(det);
   if (!IS_LOCAL) {   // hosted page: Syphon controls are shown but disabled, with a clear notice
     sb.classList.add('offline-only');
-    sb.prepend(h('div', 'status notice', 'Syphon-Ein-/Ausgabe ist nur in der lokalen Version verfügbar (macOS).'));
+    sb.prepend(h('div', 'status notice', 'Syphon input/output is only available in the local version (macOS).'));
   }
 
-  const mb = mkSection(panelR, 'Show-Modus', { collapsed: true });
-  mkCheck(mb, 'Show-Modus (nur die Vorschau drosseln)', state.show, 'on', () => { showBtn.classList.toggle('on', state.show.on); resize(); });
-  mkSelect(mb, 'Anzeige-Rate', state.show, 'fps', [[5, '5 fps'], [10, '10 fps'], [15, '15 fps'], [30, '30 fps']]);
-  mkSelect(mb, 'Anzeige-Größe', state.show, 'scale', [[0.25, '25 %'], [0.5, '50 %'], [0.75, '75 %'], [1, '100 %']], () => resize());
-  mb.append(h('div', 'status', 'Betrifft nur die Vorschau im Hauptfenster. Syphon-Ausgänge und Domemaster-Fenster behalten Größe und Rate.'));
+  const mb = mkSection(panelR, 'Show mode', { collapsed: true });
+  mkCheck(mb, 'Show mode (throttle only the preview)', state.show, 'on', () => { showBtn.classList.toggle('on', state.show.on); resize(); });
+  mkSelect(mb, 'Preview rate', state.show, 'fps', [[5, '5 fps'], [10, '10 fps'], [15, '15 fps'], [30, '30 fps']]);
+  mkSelect(mb, 'Preview size', state.show, 'scale', [[0.25, '25 %'], [0.5, '50 %'], [0.75, '75 %'], [1, '100 %']], () => resize());
+  mb.append(h('div', 'status', 'Affects only the preview in the main window. Syphon outputs and the domemaster window keep their size and rate.'));
 
   const foot = h('div', 'credits'); foot.innerHTML = ABOUT_HTML[LANG]; panelR.append(foot);
 }
@@ -1872,7 +1868,7 @@ function scheduleFrame() {
 const domeWin = { w: null, cv: null, c: null, last: 0, statusEl: null, loop: false, frames: 0 };
 // Eigene rAF-Kette im Fenster: unabhängig von Show-Modus und von der Hauptfenster-Schleife.
 // Steht die Hauptschleife (Hauptfenster verdeckt), übernimmt das Fenster sie mit.
-function domeWindowGone() { domeWin.w = null; domeWin.c = null; domeWin.loop = false; if (domeWin.statusEl) domeWin.statusEl.textContent = T('Fenster geschlossen'); }
+function domeWindowGone() { domeWin.w = null; domeWin.c = null; domeWin.loop = false; if (domeWin.statusEl) domeWin.statusEl.textContent = T('Window closed'); }
 function popupLoop() {
   const w = domeWin.w;
   if (!w || w.closed) { domeWindowGone(); return; }
@@ -1892,19 +1888,19 @@ function attachDomeWindow(w) {
   const ov2 = d.createElement('canvas'); ov2.className = 'ov'; ov2.width = ov2.height = 1024;   // Werkzeuge / Beschriftung
   d.body.appendChild(ov2);
   const c = makeGLContext(cv);
-  if (!c) { w.close(); if (domeWin.statusEl) domeWin.statusEl.textContent = T('WebGL2 im Fenster nicht verfügbar'); return; }
+  if (!c) { w.close(); if (domeWin.statusEl) domeWin.statusEl.textContent = T('WebGL2 not available in the window'); return; }
   const toggleFs = () => { if (d.fullscreenElement) d.exitFullscreen(); else d.documentElement.requestFullscreen().catch(() => {}); };
   d.addEventListener('dblclick', toggleFs);
   w.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') toggleFs(); });
   domeWin.w = w; domeWin.cv = cv; domeWin.c = c; domeWin.last = 0;
   domeWin.ov = ov2; domeWin.octx = ov2.getContext('2d'); domeWin.ovDirty = false;
   if (!domeWin.loop) { domeWin.loop = true; w.requestAnimationFrame(popupLoop); }
-  if (domeWin.statusEl) domeWin.statusEl.textContent = T('Fenster offen – auf den externen Monitor ziehen, Doppelklick oder F = Vollbild');
+  if (domeWin.statusEl) domeWin.statusEl.textContent = T('Window open – drag it to the external monitor, double-click or F = fullscreen');
 }
 function openDomeWindow() {
   if (domeWin.w && !domeWin.w.closed) { domeWin.w.focus(); return; }
   const w = window.open('', 'hope-dome-sim-master', 'popup=yes,width=860,height=860');
-  if (!w) { if (domeWin.statusEl) domeWin.statusEl.textContent = T('Popup blockiert – bitte Popups für diese Seite erlauben.'); return; }
+  if (!w) { if (domeWin.statusEl) domeWin.statusEl.textContent = T('Popup blocked – please allow popups for this page.'); return; }
   attachDomeWindow(w);
 }
 function closeDomeWindow() {
@@ -1968,9 +1964,9 @@ function updateFps(t) {
   const outCost = perf.outN ? perf.outMs / perf.outN : 0;
   perf.frames = 0; perf.out = 0; perf.t0 = t; perf.outMs = 0; perf.outN = 0;
   const cls = fps < 24 ? 'bad' : fps < 50 ? 'warn' : '';
-  let txt = `<span class="${cls}"><b>${fps.toFixed(0)}</b> fps</span> · ${perf.ms.toFixed(1)} ms` + (state.show.on ? T(' · Show-Modus') : '');
+  let txt = `<span class="${cls}"><b>${fps.toFixed(0)}</b> fps</span> · ${perf.ms.toFixed(1)} ms` + (state.show.on ? T(' · show mode') : '');
   const o = state.out;
-  if ((o.master.on && bridge.out.master) || (o.view.on && bridge.out.view)) txt += '\n' + Tf('Syphon-Ausgabe <b>{0}</b> fps · {1} ms/Bild', outFps.toFixed(0), outCost.toFixed(1));
+  if ((o.master.on && bridge.out.master) || (o.view.on && bridge.out.view)) txt += '\n' + Tf('Syphon output <b>{0}</b> fps · {1} ms/frame', outFps.toFixed(0), outCost.toFixed(1));
   perf.el.innerHTML = txt;
 }
 // Texturen: Layer an Position k (Z-Reihenfolge) → Texture-Unit k. isMain=false: zweiter Kontext (Domemaster-Fenster)
@@ -2124,15 +2120,15 @@ function drawOverlay(c) {
     if (p) {
       octx.strokeStyle = '#ffcc33'; octx.lineWidth = 2; octx.beginPath(); octx.arc(p[0], p[1], 11, 0, TAU); octx.stroke();
       octx.fillStyle = '#ffcc33'; octx.textAlign = 'left'; octx.textBaseline = 'middle';
-      octx.fillText(Tf('Sitz · {0} m · Auge {1} m  (ziehen)', dm.seatDist.toFixed(1), dm.eyeH.toFixed(2)), p[0] + 16, p[1]);
+      octx.fillText(Tf('Seat · {0} m · eye {1} m  (drag)', dm.seatDist.toFixed(1), dm.eyeH.toFixed(2)), p[0] + 16, p[1]);
     }
   }
   if (state.view === 'inside') {
     const fov = dm.lens ? state.cam.fovFish : state.cam.fovRect;
     octx.fillStyle = 'rgba(231,233,238,.85)'; octx.textAlign = 'right'; octx.textBaseline = 'top';
     const off = dm.eyeH - dm.spring;
-    octx.fillText(Tf('Augenhöhe {0} m · Kuppelrand {1} m · Versatz zur Mitte {2}{3} m', dm.eyeH.toFixed(2), dm.spring.toFixed(2), off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)), W - 14, 14);
-    octx.fillText(Tf('Sitz {0} m @ {1}° · FOV {2}°', dm.seatDist.toFixed(1), Math.round(dm.seatAng), Math.round(fov)), W - 14, 32);
+    octx.fillText(Tf('Eye height {0} m · dome rim {1} m · offset to center {2}{3} m', dm.eyeH.toFixed(2), dm.spring.toFixed(2), off >= 0 ? '+' : '−', Math.abs(off).toFixed(2)), W - 14, 14);
+    octx.fillText(Tf('Seat {0} m @ {1}° · FOV {2}°', dm.seatDist.toFixed(1), Math.round(dm.seatAng), Math.round(fov)), W - 14, 32);
   }
 }
 
@@ -2274,12 +2270,12 @@ showBtn.addEventListener('click', () => setShowMode(!state.show.on));
 function setView(v) { state.view = v; viewBtns.forEach(b => b.classList.toggle('on', b.dataset.v === v)); updateHint(); save(); }
 viewBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
 function updateHint() {
-  if (!state.showUI) { document.getElementById('hint').textContent = T('Bedienelemente ausgeblendet · Ziehen: umsehen · R: Rahmen wieder einblenden · H: Spalten · F: Vollbild'); return; }
+  if (!state.showUI) { document.getElementById('hint').textContent = T('Controls hidden · drag: look around · R: show frames again · H: columns · F: fullscreen'); return; }
   document.getElementById('hint').textContent = T(state.view === 'master'
-    ? 'Domemaster (unten = vorne) · Ecken ziehen: Perspektive · Fläche ziehen: verschieben · Alt+Scrollen: skalieren · Tab: Layer · H: Spalten · F: Vollbild'
+    ? 'Domemaster (bottom = front) · drag corners: perspective · drag surface: move · Alt+scroll: scale · Tab: layer · H: columns · F: fullscreen'
     : state.view === 'inside'
-    ? 'Ziehen: umsehen · Zwei Finger ↑↓: Augenhöhe, ←→: um die Kuppel gehen · Cmd+↑↓: Sitzabstand · Pinch/+/−: Zoom · Alt+Scrollen: Layer skalieren · Ecken ziehen: Perspektive'
-    : 'Ziehen: orbit · Gelben Sitz ziehen: Zuschauerposition · Zwei Finger ↑↓: Abstand · Ecken ziehen: Perspektive · Alt+Scrollen: Layer skalieren');
+    ? 'Drag: look around · two fingers ↑↓: eye height, ←→: walk around the dome · Cmd+↑↓: seat distance · pinch/+/−: zoom · Alt+scroll: scale layer · drag corners: perspective'
+    : 'Drag: orbit · drag the yellow seat: audience position · two fingers ↑↓: distance · drag corners: perspective · Alt+scroll: scale layer');
 }
 addEventListener('keydown', e => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.type !== 'range') return;
@@ -2315,7 +2311,7 @@ else {
   try {
     translateStatic();
     mainCtx = makeGLContext(glc);
-    if (!mainCtx) throw new Error('WebGL2 nicht verfügbar');
+    if (!mainCtx) throw new Error('WebGL2 not available');
     useCtx(mainCtx);
     buildPanel();
     if (DEMO) document.body.classList.add('demo');
@@ -2328,7 +2324,7 @@ else {
     state.layers.forEach((L, i) => {
       if (!L.used) return;
       if (L.srcType === 'camera') connectCamera(i);
-      else if (L.srcType === 'syphon') { slots[i].type = 'syphon'; slots[i].status = T(IS_LOCAL ? 'Brücke nicht verbunden' : 'Syphon ist nur offline verfügbar – den Sim lokal starten (start.command, macOS).'); }
+      else if (L.srcType === 'syphon') { slots[i].type = 'syphon'; slots[i].status = T(IS_LOCAL ? 'Bridge not connected' : 'Syphon is only available offline – run the sim locally (start.command, macOS).'); }
     });
     renderServers(); bridgeStatus(); if (IS_LOCAL) bridgeConnect();   // hosted pages never touch localhost
     scheduleFrame();
@@ -2336,7 +2332,7 @@ else {
     setInterval(() => { if (performance.now() - lastTick > 700) { rafPending = false; scheduleFrame(); } }, 400);
   } catch (e) {
     document.getElementById('nogl').hidden = false;
-    document.getElementById('nogl').textContent = Tf('Fehler: {0}', e.message);
+    document.getElementById('nogl').textContent = Tf('Error: {0}', e.message);
     console.error(e);
   }
 }
