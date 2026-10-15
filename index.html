@@ -144,6 +144,8 @@ button.btn.primary{background:var(--acc);color:#0b0d14;border-color:var(--acc);f
 .lrow .top{display:flex;gap:4px;align-items:center}
 .lrow .dot{width:10px;height:10px;border-radius:50%;flex:none;margin-right:2px}
 .lrow .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.lrow .ext{flex:none;display:grid;place-items:center;padding:2px 3px;color:var(--acc);cursor:help}
+.lrow .ext svg{display:block;width:15px;height:15px}
 .lrow .ib{background:none;border:0;color:var(--fg);cursor:pointer;padding:2px 5px;border-radius:5px;font:inherit;line-height:1.2}
 .lrow .ib:hover{background:#ffffff14}
 .lrow .ib.off{opacity:.3}
@@ -270,6 +272,8 @@ const DE = {
   'Edge feather = width of the transition (100 % reaches the image center). Falloff = curve shape: compact keeps the image bright up to near the edge and fades quickly there, wide darkens gently over the whole edge zone.':
     'Randweiche = Breite des Übergangs (100 % reicht bis zur Bildmitte). Verlauf = Form der Kurve: kompakt hält das Bild bis nahe an den Rand hell und blendet dort schnell aus, weit dunkelt es über die ganze Randzone sanft ab.',
   'Extend edges (fill background)': 'Rand erweitern (Hintergrund füllen)', 'Mode': 'Modus', 'Off': 'Aus',
+  'Edges extended: stretched edge pixels fill the whole dome (can cover layers behind)': 'Ränder erweitert: gestreckte Randpixel füllen die ganze Kuppel (können dahinterliegende Layer verdecken)',
+  'Edges extended: edge colour fills the whole dome (can cover layers behind)': 'Ränder erweitert: Randfarbe füllt die ganze Kuppel (kann dahinterliegende Layer verdecken)',
   'Stretch edge pixels': 'Rand-Pixel strecken', 'Fill with edge color (median)': 'Randfarbe füllen (Median)', 'Edge inset': 'Rand-Einzug',
   'For videos on a solid background: the edge is extended over the whole dome. “Edge color” uses the most common color of the image borders (robust against noise); “edge feather” blends the video softly into the background. “Edge inset” reads the color slightly further inside – needed when the source has a thin black border line.':
     'Für Videos vor einfarbigem Hintergrund: der Rand wird über die ganze Kuppel gezogen. „Randfarbe“ nimmt die häufigste Farbe der Bildränder (robust bei Rauschen); „Randweiche“ blendet das Video weich in den Hintergrund. „Rand-Einzug“ liest die Farbe etwas weiter innen – nötig, wenn die Quelle eine dünne schwarze Randlinie hat.',
@@ -1194,6 +1198,7 @@ const ICON = (() => {
     eye: svg(eye),
     eyeOff: svg(eye + '<path d="M2.5 13.5 13.5 2.5"/>'),
     lock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.8 0v1.8"/>'),
+    extend: svg('<rect x="5.4" y="5.4" width="5.2" height="5.2" rx=".9"/><path d="M8 1.6v2.2M8 12.2v2.2M1.6 8h2.2M12.2 8h2.2"/>'),
     unlock: svg('<rect x="3.6" y="7.2" width="8.8" height="6.2" rx="1.2"/><path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.6-.9"/>'),
     up: svg('<path d="M4 9.8 8 5.8l4 4"/>'),
     down: svg('<path d="M4 6.2l4 4 4-4"/>'),
@@ -1330,7 +1335,8 @@ function buildLayerList(parent) {
   listEl = h('div', 'llist'); parent.append(listEl);
   for (let id = 0; id < MAXL; id++) {
     const L = state.layers[id];
-    const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm');
+    const el = h('div', 'lrow'), top = h('div', 'top'), dot = h('span', 'dot'), nm = h('span', 'nm'), ext = h('span', 'ext');
+    ext.innerHTML = ICON.extend; ext.style.display = 'none';
     el.dataset.id = id;
     const grip = h('span', 'grip'); grip.innerHTML = ICON.grip; grip.title = T('Drag to change the order');
     el.addEventListener('pointerdown', e => startRowDrag(e, id, el));
@@ -1341,7 +1347,7 @@ function buildLayerList(parent) {
     const up = btn(ICON.up, 'Move up (in front of the others)', () => moveLayer(id, 1));
     const dn = btn(ICON.down, 'Move down', () => moveLayer(id, -1));
     const del = btn(ICON.x, 'Delete layer', () => removeLayer(id));
-    top.append(grip, dot, nm, eye, lock, up, dn, del);
+    top.append(grip, dot, nm, ext, eye, lock, up, dn, del);
     const bot = h('div', 'bot'), bsel = h('select'), rng = h('input'), val = h('span', 'v');
     BLEND_OPTS.forEach(([v, t]) => { const o = h('option', null, t); o.value = v; bsel.append(o); });
     bsel.addEventListener('click', e => e.stopPropagation());
@@ -1352,7 +1358,7 @@ function buildLayerList(parent) {
     bot.append(bsel, rng, val);
     el.append(top, bot);
     el.addEventListener('click', () => { if (el.dataset.justDragged) return; selectLayer(id); });
-    rows[id] = { el, nm, eye, lock, up, dn, del, bsel, rng, val };
+    rows[id] = { el, nm, ext, eye, lock, up, dn, del, bsel, rng, val };
   }
   addBtn = h('button', 'btn', '+ Add layer');
   addBtn.style.marginTop = '4px';
@@ -1374,6 +1380,9 @@ function updateLayerList() {
     r.nm.textContent = L.name || ('Layer ' + LABELS[id]);
     r.el.classList.toggle('sel', id === state.sel);
     r.el.classList.toggle('locked', !!L.locked);
+    // edge extension fills the whole dome and can cover layers behind it → flag it in the list
+    r.ext.style.display = L.extend > 0 ? '' : 'none';
+    r.ext.title = L.extend > 0 ? T(L.extend === 1 ? 'Edges extended: stretched edge pixels fill the whole dome (can cover layers behind)' : 'Edges extended: edge colour fills the whole dome (can cover layers behind)') : '';
     const ei = L.on ? ICON.eye : ICON.eyeOff, li = L.locked ? ICON.lock : ICON.unlock;
     if (r.eye._i !== ei) { r.eye.innerHTML = ei; r.eye._i = ei; }
     if (r.lock._i !== li) { r.lock.innerHTML = li; r.lock._i = li; }
